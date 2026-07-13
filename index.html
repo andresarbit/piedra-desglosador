@@ -137,6 +137,13 @@
   .adj-item-pie{display:flex; align-items:center; gap:6px; padding:6px 8px; color:var(--ink); font-weight:400}
   .adj-nombre{flex:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis}
   .adj-cargando{padding:24px 8px; text-align:center}
+  .modal-pie-info{display:flex; align-items:center; gap:12px; margin-bottom:14px}
+  .video-fuente-thumb{position:relative; width:104px; height:58px; border:1px solid var(--border2); border-radius:6px; overflow:hidden; padding:0; cursor:pointer; background:#000; flex-shrink:0}
+  .video-fuente-thumb:hover{border-color:var(--muted)}
+  .video-fuente-thumb video{width:100%; height:100%; object-fit:cover; display:block}
+  .video-fuente-play{position:absolute; inset:0; display:flex; align-items:center; justify-content:center; color:#fff; font-size:22px; text-shadow:0 1px 6px rgba(0,0,0,.7); pointer-events:none}
+  .video-player-fondo{position:fixed; inset:0; background:rgba(18,18,16,.86); z-index:60; display:flex; align-items:center; justify-content:center; padding:20px}
+  .video-player{width:min(820px,92vw); max-height:86vh; border-radius:10px; background:#000; box-shadow:0 24px 70px rgba(0,0,0,.55)}
   .campos{display:flex; flex-direction:column; gap:12px}
   .campos label,.label-block{display:flex; flex-direction:column; gap:5px; font-size:12px; color:var(--muted); font-weight:500}
   .label-block{margin-bottom:14px}
@@ -498,7 +505,7 @@ const { useState, useEffect, useMemo, useRef } = React;
    ============================================================ */
 
 /* ==================== STORAGE ==================== */
-const DB_NAME = "piedra", DB_VER = 2, ST_META = "meta", ST_STILLS = "stills", ST_ADJUNTOS = "adjuntos";
+const DB_NAME = "piedra", DB_VER = 3, ST_META = "meta", ST_STILLS = "stills", ST_ADJUNTOS = "adjuntos", ST_VIDEOS = "videos";
 let dbPromise = null;
 let modoDegradado = false; /* true = IndexedDB no disponible (típico al abrir con file://) */
 
@@ -513,6 +520,7 @@ function abrirDB() {
       if (!db.objectStoreNames.contains(ST_META)) db.createObjectStore(ST_META);
       if (!db.objectStoreNames.contains(ST_STILLS)) db.createObjectStore(ST_STILLS);
       if (!db.objectStoreNames.contains(ST_ADJUNTOS)) db.createObjectStore(ST_ADJUNTOS);
+      if (!db.objectStoreNames.contains(ST_VIDEOS)) db.createObjectStore(ST_VIDEOS);
     };
     req.onsuccess = () => res(req.result);
     req.onerror = () => rej(req.error);
@@ -582,6 +590,21 @@ async function cargarAdjunto(id) {
 async function borrarAdjunto(id) {
   if (modoDegradado) { ls.delAdjunto(id); return; }
   try { await tx(ST_ADJUNTOS, "readwrite", (s) => s.delete(id)); } catch {}
+}
+/* Video fuente del desglose: se guarda como Blob (pesado), NO va al backup. En modo degradado (file://) se omite. */
+async function guardarVideoFuente(id, blob) {
+  if (modoDegradado) return false;
+  try { await tx(ST_VIDEOS, "readwrite", (s) => s.put(blob, id)); return true; }
+  catch (e) { console.error("No se pudo guardar el video fuente", e); return false; }
+}
+async function cargarVideoFuente(id) {
+  if (modoDegradado) return null;
+  try { const r = await tx(ST_VIDEOS, "readonly", (s) => s.get(id)); return r || null; }
+  catch { return null; }
+}
+async function borrarVideoFuente(id) {
+  if (modoDegradado) return;
+  try { await tx(ST_VIDEOS, "readwrite", (s) => s.delete(id)); } catch {}
 }
 
 /* Backup completo (incluye los stills, sirve para mover el tablero de máquina) */
@@ -1197,7 +1220,7 @@ function ImportarPieza({ file, piezas, onCrear, onCerrar }) {
   const crear = async () => {
     if (!pieza.trim()) { setMsj("Poné el nombre de la pieza antes de crear."); return; }
     setCreando(true);
-    await onCrear(pieza.trim(), incluidas, fechaEntrega);
+    await onCrear(pieza.trim(), incluidas, fechaEntrega, file);
     limpiar();
   };
 
@@ -1291,16 +1314,31 @@ function ModalToma({ inicial, piezas, responsables, onGuardar, onCerrar, stillAc
   const [adjDatos, setAdjDatos] = useState({});       // id -> dataURL (preview + guardado)
   const [adjNuevos, setAdjNuevos] = useState([]);     // ids agregados en esta edición
   const [adjBorrados, setAdjBorrados] = useState([]); // ids existentes a borrar al guardar
+  const [videoFuenteURL, setVideoFuenteURL] = useState(null);
+  const [verVideo, setVerVideo] = useState(false);
+  const verVideoRef = useRef(false);
   const fileRef = useRef();
   const adjFileRef = useRef();
   const adjOriginales = useRef(new Set((inicial.adjuntos || []).map((a) => a.id)));
   const set = (k, v) => setF((p) => Object.assign({}, p, { [k]: v }));
 
+  useEffect(() => { verVideoRef.current = verVideo; }, [verVideo]);
   useEffect(() => {
-    const onKey = (e) => { if (e.key === "Escape") onCerrar(); };
+    const onKey = (e) => { if (e.key === "Escape") { if (verVideoRef.current) setVerVideo(false); else onCerrar(); } };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [onCerrar]);
+
+  /* Cargar el video fuente del desglose (si esta toma tiene uno) */
+  useEffect(() => {
+    if (!inicial.videoFuente) return;
+    let url = null;
+    (async () => {
+      const blob = await cargarVideoFuente(inicial.videoFuente.id);
+      if (blob) { url = URL.createObjectURL(blob); setVideoFuenteURL(url); }
+    })();
+    return () => { if (url) URL.revokeObjectURL(url); };
+  }, []);
 
   /* Cargar los adjuntos ya guardados de esta toma */
   useEffect(() => {
@@ -1371,6 +1409,7 @@ function ModalToma({ inicial, piezas, responsables, onGuardar, onCerrar, stillAc
   };
 
   return (
+    <React.Fragment>
     <div className="modal-fondo" onMouseDown={(e) => e.target === e.currentTarget && onCerrar()}>
       <div className="modal" role="dialog" aria-modal="true">
         <div className="modal-head">
@@ -1478,8 +1517,16 @@ function ModalToma({ inicial, piezas, responsables, onGuardar, onCerrar, stillAc
           </div>
         )}
 
-        <div className="mini muted" style={{ marginBottom: 14 }}>
-          Subida: {fechaCorta(f.createdAt || f.updatedAt)} · Últ. cambio: {fechaCorta(f.updatedAt)}
+        <div className="modal-pie-info">
+          {videoFuenteURL && (
+            <button type="button" className="video-fuente-thumb"
+              title={"Ver video fuente" + (f.videoFuente && f.videoFuente.nombre ? ": " + f.videoFuente.nombre : "")}
+              onClick={() => setVerVideo(true)}>
+              <video src={videoFuenteURL} poster={thumb || undefined} muted preload="metadata" />
+              <span className="video-fuente-play">▶</span>
+            </button>
+          )}
+          <span className="mini muted">Subida: {fechaCorta(f.createdAt || f.updatedAt)} · Últ. cambio: {fechaCorta(f.updatedAt)}</span>
         </div>
 
         <div className="modal-pie">
@@ -1488,6 +1535,12 @@ function ModalToma({ inicial, piezas, responsables, onGuardar, onCerrar, stillAc
         </div>
       </div>
     </div>
+    {verVideo && videoFuenteURL && (
+      <div className="video-player-fondo" onMouseDown={() => setVerVideo(false)}>
+        <video src={videoFuenteURL} controls autoPlay className="video-player" onMouseDown={(e) => e.stopPropagation()} />
+      </div>
+    )}
+    </React.Fragment>
   );
 }
 
@@ -1622,13 +1675,22 @@ function App() {
     }
     setConfirmarId(null);
     const shot = shotsRef.current.find((s) => s.id === id);
+    const restantes = shotsRef.current.filter((s) => s.id !== id);
     await borrarStill(id);
     if (shot && shot.adjuntos) for (const a of shot.adjuntos) await borrarAdjunto(a.id);
-    await persistir(shotsRef.current.filter((s) => s.id !== id));
+    if (shot && shot.videoFuente && !restantes.some((s) => s.videoFuente && s.videoFuente.id === shot.videoFuente.id))
+      await borrarVideoFuente(shot.videoFuente.id);
+    await persistir(restantes);
   };
 
-  const crearDesglose = async (pieza, segmentos, fechaEntrega) => {
+  const crearDesglose = async (pieza, segmentos, fechaEntrega, file) => {
     const base = Math.max(0, ...shotsRef.current.filter((s) => s.pieza === pieza).map((s) => s.toma));
+    let videoFuente = null;
+    if (file) {
+      const vid = uid();
+      const ok = await guardarVideoFuente(vid, file);
+      if (ok) videoFuente = { id: vid, nombre: file.name || "video" };
+    }
     const nuevas = [];
     for (let i = 0; i < segmentos.length; i++) {
       const seg = segmentos[i];
@@ -1636,6 +1698,7 @@ function App() {
         id: uid(), pieza, toma: base + i + 1, version: 1,
         responsable: "", estado: "Producción", prompt: "", notas: "",
         tc: tcFmt(seg.ini) + "–" + tcFmt(seg.fin), fechaEntrega: fechaEntrega || "",
+        videoFuente: videoFuente,
         historial: [], hasStill: true, createdAt: hoy(), updatedAt: hoy(),
       };
       await guardarStill(shot.id, seg.still);
