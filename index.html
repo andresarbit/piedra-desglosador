@@ -62,7 +62,8 @@
   .toggle-vista .on{background:var(--hover); color:var(--ink); font-weight:600}
 
   .tabla-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:10px}
-  table{width:100%; border-collapse:collapse; min-width:860px}
+  table{width:100%; border-collapse:collapse; min-width:980px}
+  tbody tr{cursor:pointer}
   th{text-align:left; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:600; padding:11px 14px; border-bottom:1px solid var(--border); background:var(--bg2)}
   td{padding:11px 14px; border-bottom:1px solid var(--border); vertical-align:middle}
   .th-orden{cursor:pointer; user-select:none; white-space:nowrap}
@@ -74,6 +75,7 @@
   .linea-corta{margin-top:3px; max-width:240px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .centrado{text-align:center}
   .fecha-cell{white-space:nowrap}
+  .fecha-entrega-input{padding:5px 7px; font-size:12.5px; width:140px}
   .acciones{white-space:nowrap; text-align:right}
 
   .thumb{border-radius:6px; display:block; object-fit:cover; cursor:pointer; border:1px solid var(--border)}
@@ -145,6 +147,7 @@
   .imp-controles{display:flex; gap:18px; flex-wrap:wrap; margin-bottom:10px}
   .imp-pieza{flex:1; min-width:200px}
   .imp-sens{flex:1; min-width:240px}
+  .imp-fecha{flex:1; min-width:170px}
   .imp-controles label{display:flex; flex-direction:column; gap:5px; font-size:12px; color:var(--muted); font-weight:500}
   .imp-slider{display:flex; gap:10px; align-items:center}
   .imp-slider input[type=range]{flex:1; padding:0}
@@ -704,6 +707,7 @@ function ImportarPieza({ file, piezas, onCrear, onCerrar }) {
   const [umbral, setUmbral] = useState(20);
   const [segs, setSegs] = useState([]);
   const [pieza, setPieza] = useState("");
+  const [fechaEntrega, setFechaEntrega] = useState("");
   const [creando, setCreando] = useState(false);
   const videoRef = useRef(null);
   const urlRef = useRef(null);
@@ -849,7 +853,7 @@ function ImportarPieza({ file, piezas, onCrear, onCerrar }) {
   const crear = async () => {
     if (!pieza.trim()) { setMsj("Poné el nombre de la pieza antes de crear."); return; }
     setCreando(true);
-    await onCrear(pieza.trim(), incluidas);
+    await onCrear(pieza.trim(), incluidas, fechaEntrega);
     limpiar();
   };
 
@@ -891,6 +895,9 @@ function ImportarPieza({ file, piezas, onCrear, onCerrar }) {
                   <button className="btn-fantasma" onClick={recalcular}>Recalcular</button>
                 </div>
                 <span className="mini muted">Menos = detecta más cortes · Más = detecta menos</span>
+              </label>
+              <label className="imp-fecha">Fecha de entrega <span className="mini muted">(opcional)</span>
+                <input type="date" value={fechaEntrega} onChange={(e) => setFechaEntrega(e.target.value)} />
               </label>
             </div>
 
@@ -1004,11 +1011,16 @@ function ModalToma({ inicial, piezas, responsables, onGuardar, onCerrar, stillAc
                 onChange={(e) => set("responsable", e.target.value)} />
               <datalist id="lista-resp">{responsables.map((r) => <option key={r} value={r} />)}</datalist>
             </label>
-            <label>Etapa
-              <select value={f.estado} onChange={(e) => set("estado", e.target.value)}>
-                {ESTADOS.map((s) => <option key={s} value={s}>{s}</option>)}
-              </select>
-            </label>
+            <div className="fila-2">
+              <label>Etapa
+                <select value={f.estado} onChange={(e) => set("estado", e.target.value)}>
+                  {ESTADOS.map((s) => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </label>
+              <label>Fecha de entrega
+                <input type="date" value={f.fechaEntrega || ""} onChange={(e) => set("fechaEntrega", e.target.value)} />
+              </label>
+            </div>
           </div>
         </div>
 
@@ -1113,6 +1125,7 @@ function App() {
       version: (a, b) => a.version - b.version,
       responsable: (a, b) => (a.responsable || "\uffff").localeCompare(b.responsable || "\uffff"),
       estado: (a, b) => ESTADOS.indexOf(a.estado) - ESTADOS.indexOf(b.estado),
+      fechaEntrega: (a, b) => (a.fechaEntrega || "￿").localeCompare(b.fechaEntrega || "￿"),
       fecha: (a, b) => (a.updatedAt || "").localeCompare(b.updatedAt || ""),
     }[orden.key] || (() => 0);
 
@@ -1148,6 +1161,8 @@ function App() {
     persistir(shotsRef.current.map((s) => (s.id === id ? Object.assign({}, s, { estado, updatedAt: hoy() }) : s)));
   const cambiarResp = (id, responsable) =>
     persistir(shotsRef.current.map((s) => (s.id === id ? Object.assign({}, s, { responsable, updatedAt: hoy() }) : s)));
+  const cambiarFechaEntrega = (id, fechaEntrega) =>
+    persistir(shotsRef.current.map((s) => (s.id === id ? Object.assign({}, s, { fechaEntrega, updatedAt: hoy() }) : s)));
   const ciclarPrio = (id) =>
     persistir(shotsRef.current.map((s) => (s.id === id ? Object.assign({}, s, { prio: (nivelPrio(s) + 1) % 4, updatedAt: hoy() }) : s)));
   const subirVersion = (id) =>
@@ -1170,7 +1185,7 @@ function App() {
     await persistir(shotsRef.current.filter((s) => s.id !== id));
   };
 
-  const crearDesglose = async (pieza, segmentos) => {
+  const crearDesglose = async (pieza, segmentos, fechaEntrega) => {
     const base = Math.max(0, ...shotsRef.current.filter((s) => s.pieza === pieza).map((s) => s.toma));
     const nuevas = [];
     for (let i = 0; i < segmentos.length; i++) {
@@ -1178,7 +1193,7 @@ function App() {
       const shot = {
         id: uid(), pieza, toma: base + i + 1, version: 1,
         responsable: "", estado: "Producción", prompt: "", notas: "",
-        tc: tcFmt(seg.ini) + "–" + tcFmt(seg.fin),
+        tc: tcFmt(seg.ini) + "–" + tcFmt(seg.fin), fechaEntrega: fechaEntrega || "",
         historial: [], hasStill: true, updatedAt: hoy(),
       };
       await guardarStill(shot.id, seg.still);
@@ -1187,7 +1202,6 @@ function App() {
     }
     await persistir(shotsRef.current.concat(nuevas));
     setImportar(null);
-    setFPieza(pieza);
   };
 
   const exportar = async () => {
@@ -1320,7 +1334,7 @@ function App() {
                 <thead>
                   <tr>
                     {[["prio","Prio"],["still","Still"],["pieza","Pieza / Toma"],["notas","Notas"],
-                      ["version","Ver"],["responsable","Resp"],["estado","Estado"],["fecha","Fecha"]].map((par) => (
+                      ["version","Ver"],["responsable","Resp"],["estado","Estado"],["fechaEntrega","Entrega"],["fecha","Fecha"]].map((par) => (
                       <th key={par[0]} className={"th-orden" + (orden.key === par[0] ? " on" : "")}
                         onClick={() => ordenarPor(par[0])} title={"Ordenar por " + par[1].toLowerCase()}>
                         {par[1]}
@@ -1332,9 +1346,9 @@ function App() {
                 </thead>
                 <tbody>
                   {filtradas.map((s) => (
-                    <tr key={s.id}>
-                      <td className="centrado"><PrioBars nivel={nivelPrio(s)} onCiclar={() => ciclarPrio(s.id)} /></td>
-                      <td><Thumb src={stills[s.id]} onClick={() => stills[s.id] && setLightbox(stills[s.id])} /></td>
+                    <tr key={s.id} onClick={() => setModal({ shot: s })}>
+                      <td className="centrado" onClick={(e) => e.stopPropagation()}><PrioBars nivel={nivelPrio(s)} onCiclar={() => ciclarPrio(s.id)} /></td>
+                      <td onClick={(e) => e.stopPropagation()}><Thumb src={stills[s.id]} onClick={() => stills[s.id] && setLightbox(stills[s.id])} /></td>
                       <td>
                         <div className="codigo-toma">{codigo(s)}</div>
                         {(s.tc || s.prompt) && (
@@ -1345,7 +1359,7 @@ function App() {
                       </td>
                       <td className="centrado"><NotaPop texto={s.notas} /></td>
                       <td><Badge>v{s.version}</Badge></td>
-                      <td>
+                      <td onClick={(e) => e.stopPropagation()}>
                         {nuevoResp && nuevoResp.id === s.id ? (
                           <input autoFocus className="resp-input" placeholder="Nombre…" value={nuevoResp.valor}
                             onChange={(e) => setNuevoResp({ id: s.id, valor: e.target.value })}
@@ -1372,9 +1386,13 @@ function App() {
                           </span>
                         )}
                       </td>
-                      <td><ChipEstado estado={s.estado} onChange={(v) => cambiarEstado(s.id, v)} /></td>
+                      <td onClick={(e) => e.stopPropagation()}><ChipEstado estado={s.estado} onChange={(v) => cambiarEstado(s.id, v)} /></td>
+                      <td onClick={(e) => e.stopPropagation()}>
+                        <input type="date" className="fecha-entrega-input" value={s.fechaEntrega || ""}
+                          onChange={(e) => cambiarFechaEntrega(s.id, e.target.value)} />
+                      </td>
                       <td className="mini muted fecha-cell">📅 {fechaCorta(s.updatedAt)}</td>
-                      <td className="acciones">
+                      <td className="acciones" onClick={(e) => e.stopPropagation()}>
                         <button className="btn-mini" title="Nueva versión (vuelve a Producción)" onClick={() => subirVersion(s.id)}>v+</button>
                         <button className="btn-mini" title="Editar" onClick={() => setModal({ shot: s })}>✎</button>
                         <button className={"btn-mini rojo" + (confirmarId === s.id ? " confirmando" : "")}
