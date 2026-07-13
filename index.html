@@ -1,0 +1,1440 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>PIEDRA · Control de tomas</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#FFFFFF; --bg2:#FAFAF9; --border:#ECECEA; --border2:#E2E2DF;
+    --ink:#1C1C1A; --muted:#8A8A85; --hover:#F6F6F4;
+  }
+  *{box-sizing:border-box; margin:0}
+  body{background:var(--bg)}
+  .app{min-height:100vh; background:var(--bg); color:var(--ink); font-family:'Inter',sans-serif; font-size:14px}
+  .mono{font-family:'IBM Plex Mono',monospace}
+  .mini{font-size:12px}
+  .muted{color:var(--muted)}
+  button{cursor:pointer; font-family:inherit}
+
+  .layout{display:grid; grid-template-columns:230px 1fr; min-height:100vh}
+  @media(max-width:860px){.layout{grid-template-columns:1fr} .main{order:1} .sidebar{order:2}}
+
+  .sidebar{border-right:1px solid var(--border); padding:26px 18px; display:flex; flex-direction:column; gap:26px; background:var(--bg)}
+  @media(max-width:860px){.sidebar{border-right:none; border-top:1px solid var(--border); gap:16px; padding:18px}}
+  .sb-titulo{display:flex; flex-direction:column; gap:2px}
+  .sb-num{font-size:30px; font-weight:700; line-height:1.1}
+  .sb-label{font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); font-weight:600; margin-bottom:6px; display:block}
+  .sb-seccion{display:flex; flex-direction:column; gap:1px}
+  .filtro-item{display:flex; align-items:center; gap:8px; background:none; border:none; padding:6px 8px; border-radius:6px; color:var(--ink); font-size:13.5px; text-align:left}
+  .filtro-item:hover{background:var(--hover)}
+  .filtro-item.on{background:var(--hover); font-weight:600}
+  .filtro-nombre{flex:1; display:flex; align-items:center; gap:8px; overflow:hidden; white-space:nowrap; text-overflow:ellipsis}
+  .filtro-count{font-size:12px; color:var(--muted)}
+  .dot{width:7px; height:7px; border-radius:50%; flex-shrink:0}
+  .sb-pie{margin-top:auto; display:flex; flex-direction:column; gap:8px}
+  .aviso{background:#FBF3DC; border:1px solid #E3A008; color:#92600A; border-radius:6px; padding:8px 10px; font-size:11.5px; line-height:1.45}
+
+  .main{padding:26px clamp(16px,3vw,36px); min-width:0}
+  .barra-top{display:flex; gap:12px; margin-bottom:18px; flex-wrap:wrap; align-items:center}
+  .buscador-wrap{position:relative; flex:1; min-width:220px}
+  .lupa{position:absolute; left:12px; top:50%; transform:translateY(-50%); color:var(--muted); font-size:16px}
+  .buscador{width:100%; padding-left:34px}
+  input,select,textarea{background:var(--bg); border:1px solid var(--border2); color:var(--ink); border-radius:8px; padding:9px 12px; font-size:14px; font-family:inherit}
+  textarea{width:100%; resize:vertical}
+  input:focus-visible,select:focus-visible,textarea:focus-visible,button:focus-visible{outline:2px solid #B8B8B2; outline-offset:1px}
+
+  .btn-primario{background:var(--ink); color:#fff; border:none; border-radius:8px; padding:9px 16px; font-weight:600; font-size:13.5px}
+  .btn-primario:hover{background:#333330}
+  .btn-fantasma{background:none; border:1px solid var(--border2); color:var(--muted); border-radius:8px; padding:7px 12px; font-size:13px}
+  .btn-fantasma:hover{color:var(--ink); background:var(--hover)}
+  .btn-mini{background:var(--bg); border:1px solid var(--border2); color:var(--muted); border-radius:6px; padding:4px 8px; font-size:12px; margin-left:4px}
+  .btn-mini:hover{color:var(--ink); background:var(--hover)}
+  .btn-mini.rojo:hover{color:#C0392B; border-color:#C0392B}
+  .btn-mini.confirmando{color:#fff; background:#C0392B; border-color:#C0392B}
+
+  .toggle-vista{display:flex; border:1px solid var(--border2); border-radius:8px; overflow:hidden}
+  .toggle-vista button{background:none; border:none; color:var(--muted); padding:9px 14px; font-size:13px; font-weight:500}
+  .toggle-vista .on{background:var(--hover); color:var(--ink); font-weight:600}
+
+  .tabla-wrap{overflow-x:auto; border:1px solid var(--border); border-radius:10px}
+  table{width:100%; border-collapse:collapse; min-width:860px}
+  th{text-align:left; font-size:11px; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); font-weight:600; padding:11px 14px; border-bottom:1px solid var(--border); background:var(--bg2)}
+  td{padding:11px 14px; border-bottom:1px solid var(--border); vertical-align:middle}
+  .th-orden{cursor:pointer; user-select:none; white-space:nowrap}
+  .th-orden:hover, .th-orden.on{color:var(--ink)}
+  .flecha{display:inline-block; width:12px; margin-left:4px; font-size:9px}
+  tr:last-child td{border-bottom:none}
+  tr:hover td{background:var(--bg2)}
+  .codigo-toma{font-weight:600; font-size:13.5px}
+  .linea-corta{margin-top:3px; max-width:240px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
+  .centrado{text-align:center}
+  .fecha-cell{white-space:nowrap}
+  .acciones{white-space:nowrap; text-align:right}
+
+  .thumb{border-radius:6px; display:block; object-fit:cover; cursor:pointer; border:1px solid var(--border)}
+  .thumb-vacio{display:flex; align-items:center; justify-content:center; background:var(--bg2); color:var(--muted); font-size:12px}
+
+  .badge{background:var(--bg2); border:1px solid var(--border2); color:var(--ink); border-radius:6px; padding:2px 7px; font-size:12px; font-weight:500; white-space:nowrap}
+
+  .avatar{width:24px; height:24px; border-radius:50%; display:inline-flex; align-items:center; justify-content:center; color:#fff; font-size:10px; font-weight:700; flex-shrink:0}
+  .avatar-vacio{background:var(--bg2); color:var(--muted); border:1px solid var(--border2)}
+  .resp-cell{display:inline-flex; align-items:center; gap:8px}
+  .resp-select{border:1px solid transparent; background:transparent; padding:4px 6px; font-size:13px; border-radius:6px; cursor:pointer; max-width:130px; appearance:none; -webkit-appearance:none; color:var(--ink)}
+  tr:hover .resp-select{border-color:var(--border2); background:var(--bg)}
+  .resp-select:hover{border-color:var(--muted)!important}
+  .resp-input{width:130px; padding:5px 8px; font-size:13px}
+  .prio-btn{display:inline-flex; align-items:flex-end; gap:2px; background:none; border:none; padding:6px 4px; border-radius:6px}
+  .prio-btn:hover{background:var(--hover)}
+  .prio-barra{width:4px; border-radius:1px; display:block}
+
+  .chip-estado{border:none; border-radius:6px; font-size:12.5px; font-weight:600; appearance:none; -webkit-appearance:none; cursor:pointer; padding:5px 10px; font-family:inherit}
+  .chip-estado option{background:#fff; color:var(--ink)}
+
+  .nota-icono{position:relative; display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px; border-radius:50%; cursor:default; color:#92600A; background:#FBF3DC; font-size:14px; font-weight:700}
+  .nota-pop{display:none; position:absolute; z-index:30; top:calc(100% + 8px); left:50%; transform:translateX(-50%); width:260px; max-width:70vw; background:var(--ink); color:#fff; font-size:12.5px; font-weight:400; line-height:1.5; border-radius:8px; padding:10px 12px; text-align:left; white-space:pre-wrap; box-shadow:0 8px 24px rgba(0,0,0,.18)}
+  .nota-pop::before{content:""; position:absolute; top:-5px; left:50%; transform:translateX(-50%) rotate(45deg); width:10px; height:10px; background:var(--ink)}
+  .nota-icono:hover .nota-pop, .nota-icono:focus .nota-pop{display:block}
+  tbody tr:nth-last-child(-n+2) .nota-pop{top:auto; bottom:calc(100% + 8px)}
+  tbody tr:nth-last-child(-n+2) .nota-pop::before{top:auto; bottom:-5px}
+
+  .kanban{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
+  @media(max-width:820px){.kanban{grid-template-columns:1fr}}
+  .col{background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:12px; min-height:220px}
+  .col-head{font-size:12px; font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:8px}
+  .col-head .mono{margin-left:auto}
+  .card{background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:10px; margin-bottom:10px; cursor:grab}
+  .card:hover{border-color:var(--border2); box-shadow:0 2px 8px rgba(0,0,0,.05)}
+  .card-thumb{margin-bottom:8px}
+  .card-thumb .thumb, .card-thumb .thumb-vacio{width:30%!important}
+  .card-meta{display:flex; justify-content:space-between; align-items:center; margin-top:8px}
+
+  .modal-fondo{position:fixed; inset:0; background:rgba(20,20,18,.45); z-index:50; display:flex; align-items:center; justify-content:center; padding:18px}
+  .modal{background:var(--bg); border:1px solid var(--border); border-radius:12px; width:min(720px,100%); max-height:92vh; overflow-x:hidden; overflow-y:auto; padding:22px; box-shadow:0 20px 60px rgba(0,0,0,.2)}
+  .modal-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:18px}
+  .modal-codigo{font-size:15px; font-weight:700; display:flex; align-items:center; gap:8px}
+  .modal-grid{display:grid; grid-template-columns:300px 1fr; gap:18px; margin-bottom:16px; align-items:start}
+  .modal-grid>*{min-width:0}
+  .campos input,.campos select,.campos textarea{width:100%}
+  .fila-2>label{min-width:0}
+  @media(max-width:640px){.modal-grid{grid-template-columns:1fr}}
+  .drop-still{border:1.5px dashed var(--border2); border-radius:8px; aspect-ratio:16/9; width:100%; display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; background:var(--bg2)}
+  .drop-still:hover{border-color:var(--muted)}
+  .drop-still img{width:100%; height:100%; object-fit:cover}
+  .drop-vacio{display:flex; flex-direction:column; gap:4px; align-items:center; color:var(--muted); font-size:13px; padding:16px; text-align:center}
+  .campos{display:flex; flex-direction:column; gap:12px}
+  .campos label,.label-block{display:flex; flex-direction:column; gap:5px; font-size:12px; color:var(--muted); font-weight:500}
+  .label-block{margin-bottom:14px}
+  .fila-2{display:grid; grid-template-columns:1fr 1fr; gap:10px}
+  .historial{margin-bottom:14px; display:flex; gap:8px; flex-wrap:wrap; align-items:center}
+  .hist-item{background:var(--bg2); border:1px solid var(--border2); border-radius:6px; padding:2px 7px; color:var(--muted)}
+  .modal-pie{display:flex; justify-content:flex-end; align-items:center; gap:12px}
+  .error-msg{color:#C0392B; margin-right:auto}
+
+  .lightbox img{max-width:92vw; max-height:88vh; border-radius:8px}
+
+  .modal-ancho{width:min(920px,100%)}
+  .imp-progreso{padding:30px 0; display:flex; flex-direction:column; gap:12px; align-items:center}
+  .imp-detalle{max-width:560px; text-align:center; word-break:break-word; background:var(--bg2); border:1px solid var(--border); border-radius:6px; padding:8px 12px}
+  .barra{width:100%; max-width:420px; height:6px; background:var(--bg2); border-radius:3px; overflow:hidden; border:1px solid var(--border)}
+  .barra i{display:block; height:100%; background:var(--ink); transition:width .2s}
+  .imp-controles{display:flex; gap:18px; flex-wrap:wrap; margin-bottom:10px}
+  .imp-pieza{flex:1; min-width:200px}
+  .imp-sens{flex:1; min-width:240px}
+  .imp-controles label{display:flex; flex-direction:column; gap:5px; font-size:12px; color:var(--muted); font-weight:500}
+  .imp-slider{display:flex; gap:10px; align-items:center}
+  .imp-slider input[type=range]{flex:1; padding:0}
+  .imp-ayuda{margin-bottom:14px}
+  .imp-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(180px,1fr)); gap:12px; margin-bottom:18px; max-height:46vh; overflow-y:auto; padding-right:4px}
+  .imp-card{border:1px solid var(--border); border-radius:8px; overflow:hidden; background:var(--bg)}
+  .imp-card img{width:100%; aspect-ratio:16/9; object-fit:cover; display:block}
+  .imp-card.excluida{opacity:.4}
+  .imp-card-info{display:flex; flex-direction:column; gap:2px; padding:8px 10px 4px}
+  .imp-card-acciones{display:flex; justify-content:flex-end; padding:4px 8px 8px}
+  .tc-tag{background:var(--bg2); border:1px solid var(--border); border-radius:4px; padding:1px 5px; font-size:11px}
+  .vacio{text-align:center; padding:70px 20px; color:var(--muted); display:flex; flex-direction:column; gap:18px; align-items:center}
+  .cargando{text-align:center; padding:120px 0; color:var(--muted); font-size:13px}
+
+  @media (prefers-reduced-motion: reduce){*{transition:none!important; animation:none!important}}
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+
+<script type="text/babel" data-presets="react">
+const { useState, useEffect, useMemo, useRef } = React;
+
+/* ============================================================
+   PIEDRA · Control de tomas — versión local (archivo único)
+   Guardado: IndexedDB del navegador (sin servidor).
+   Para pasar a backend real se reescribe SOLO el bloque
+   "STORAGE" de abajo, manteniendo las mismas 5 funciones.
+   ============================================================ */
+
+/* ==================== STORAGE ==================== */
+const DB_NAME = "piedra", DB_VER = 1, ST_META = "meta", ST_STILLS = "stills";
+let dbPromise = null;
+let modoDegradado = false; /* true = IndexedDB no disponible (típico al abrir con file://) */
+
+function abrirDB() {
+  if (dbPromise) return dbPromise;
+  dbPromise = new Promise((res, rej) => {
+    let req;
+    try { req = indexedDB.open(DB_NAME, DB_VER); }
+    catch (e) { return rej(e); }
+    req.onupgradeneeded = () => {
+      const db = req.result;
+      if (!db.objectStoreNames.contains(ST_META)) db.createObjectStore(ST_META);
+      if (!db.objectStoreNames.contains(ST_STILLS)) db.createObjectStore(ST_STILLS);
+    };
+    req.onsuccess = () => res(req.result);
+    req.onerror = () => rej(req.error);
+    req.onblocked = () => rej(new Error("IndexedDB bloqueada"));
+    setTimeout(() => rej(new Error("IndexedDB no respondió")), 4000);
+  });
+  return dbPromise;
+}
+
+async function tx(store, modo, fn) {
+  const db = await abrirDB();
+  return new Promise((res, rej) => {
+    const t = db.transaction(store, modo);
+    const req = fn(t.objectStore(store));
+    t.oncomplete = () => res(req ? req.result : undefined);
+    t.onerror = () => rej(t.error);
+    t.onabort = () => rej(t.error);
+  });
+}
+
+/* Respaldo en localStorage si IndexedDB no está (file://). Limitado (~5MB). */
+const ls = {
+  getData: () => { try { return JSON.parse(localStorage.getItem("piedra:data") || "{}").shots || []; } catch { return []; } },
+  setData: (shots) => { localStorage.setItem("piedra:data", JSON.stringify({ shots })); },
+  getStill: (id) => localStorage.getItem("piedra:still:" + id),
+  setStill: (id, b64) => localStorage.setItem("piedra:still:" + id, b64),
+  delStill: (id) => localStorage.removeItem("piedra:still:" + id),
+};
+
+async function guardarData(shots) {
+  if (modoDegradado) { try { ls.setData(shots); return true; } catch { return false; } }
+  try { await tx(ST_META, "readwrite", (s) => s.put({ shots }, "data")); return true; }
+  catch (e) { modoDegradado = true; try { ls.setData(shots); return true; } catch { return false; } }
+}
+async function cargarData() {
+  try { const r = await tx(ST_META, "readonly", (s) => s.get("data")); return (r && r.shots) || []; }
+  catch (e) { modoDegradado = true; return ls.getData(); }
+}
+async function guardarStill(id, b64) {
+  if (modoDegradado) { try { ls.setStill(id, b64); } catch (e) { console.error("Sin espacio para el still", e); } return; }
+  try { await tx(ST_STILLS, "readwrite", (s) => s.put(b64, id)); }
+  catch (e) { modoDegradado = true; try { ls.setStill(id, b64); } catch {} }
+}
+async function cargarStill(id) {
+  if (modoDegradado) return ls.getStill(id);
+  try { const r = await tx(ST_STILLS, "readonly", (s) => s.get(id)); return r || null; }
+  catch { modoDegradado = true; return ls.getStill(id); }
+}
+async function borrarStill(id) {
+  if (modoDegradado) { ls.delStill(id); return; }
+  try { await tx(ST_STILLS, "readwrite", (s) => s.delete(id)); } catch {}
+}
+
+/* Backup completo (incluye los stills, sirve para mover el tablero de máquina) */
+async function exportarTodo() {
+  const shots = await cargarData();
+  const stills = {};
+  for (const s of shots) {
+    if (!s.hasStill) continue;
+    const b64 = await cargarStill(s.id);
+    if (b64) stills[s.id] = b64;
+  }
+  return { app: "piedra-tomas", version: 1, exportado: new Date().toISOString(), shots, stills };
+}
+async function importarTodo(data, modo) {
+  if (!data || !Array.isArray(data.shots)) throw new Error("El archivo no es un backup válido.");
+  const stills = data.stills || {};
+  let shots;
+  if (modo === "fusionar") {
+    const actuales = await cargarData();
+    const ids = new Set(actuales.map((s) => s.id));
+    shots = actuales.concat(data.shots.filter((s) => !ids.has(s.id)));
+  } else shots = data.shots;
+  for (const id of Object.keys(stills)) await guardarStill(id, stills[id]);
+  await guardarData(shots);
+  return shots;
+}
+
+/* ==================== CONSTANTES ==================== */
+const ESTADOS = ["Producción", "Revisión", "Aprobada"];
+/* Roster base del equipo: siempre disponible para asignar, aunque no tenga tomas.
+   (En backend esto pasa a la tabla `users`, ver HANDOFF.md §4.) */
+const RESPONSABLES_BASE = ["Tomi", "Andi", "Guido"];
+const ESTADO_STYLE = {
+  "Producción": { color: "#92600A", bg: "#FBF3DC", dot: "#E3A008" },
+  "Revisión":   { color: "#3454C7", bg: "#EEF2FE", dot: "#5B79E3" },
+  "Aprobada":   { color: "#1E7F4F", bg: "#E7F6EC", dot: "#2FB36B" },
+};
+
+/* ==================== ANÁLISIS DE VIDEO ====================
+   Todo local: el video nunca se sube a ningún lado. */
+function seekTo(video, t) {
+  return new Promise((res) => {
+    const objetivo = Math.max(0.01, Math.min(t, video.duration - 0.05));
+    if (Math.abs(video.currentTime - objetivo) < 0.005 && video.readyState >= 2) return res();
+    let listo = false;
+    const fin = () => {
+      if (listo) return;
+      listo = true;
+      clearTimeout(timer);
+      video.removeEventListener("seeked", fin);
+      res();
+    };
+    const timer = setTimeout(fin, 1500);
+    video.addEventListener("seeked", fin);
+    video.currentTime = objetivo;
+  });
+}
+function firmaFrame(video, canvas) {
+  const ctx = canvas.getContext("2d", { willReadFrequently: true });
+  ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+  const d = ctx.getImageData(0, 0, canvas.width, canvas.height).data;
+  const luma = new Uint8Array(canvas.width * canvas.height);
+  for (let i = 0, j = 0; i < d.length; i += 4, j++)
+    luma[j] = (d[i] * 3 + d[i + 1] * 6 + d[i + 2]) / 10;
+  return luma;
+}
+function difFirmas(a, b) {
+  let s = 0;
+  for (let i = 0; i < a.length; i++) s += Math.abs(a[i] - b[i]);
+  return (s / a.length / 255) * 100;
+}
+async function capturarFrame(video, t, maxW = 640) {
+  await seekTo(video, t);
+  const scale = Math.min(1, maxW / video.videoWidth);
+  const c = document.createElement("canvas");
+  c.width = Math.round(video.videoWidth * scale);
+  c.height = Math.round(video.videoHeight * scale);
+  c.getContext("2d").drawImage(video, 0, 0, c.width, c.height);
+  return c.toDataURL("image/jpeg", 0.8);
+}
+const tcFmt = (t) => {
+  const m = Math.floor(t / 60), s = t % 60;
+  return String(m).padStart(2, "0") + ":" + s.toFixed(1).padStart(4, "0");
+};
+
+function buscarCodecs(buf) {
+  const dv = new DataView(buf);
+  const codecs = [];
+  const contenedores = ["moov", "trak", "mdia", "minf", "stbl"];
+  const leer = (start, end) => {
+    let p = start;
+    while (p + 8 <= end) {
+      let size = dv.getUint32(p);
+      const tipo = String.fromCharCode(dv.getUint8(p + 4), dv.getUint8(p + 5), dv.getUint8(p + 6), dv.getUint8(p + 7));
+      let header = 8;
+      if (size === 1) {
+        if (p + 16 > end) break;
+        size = Number(dv.getBigUint64(p + 8)); header = 16;
+      } else if (size === 0) size = end - p;
+      if (size < header || p + size > end + 1) break;
+      if (contenedores.includes(tipo)) leer(p + header, Math.min(p + size, end));
+      else if (tipo === "stsd") {
+        let q = p + header + 8;
+        while (q + 8 <= p + size) {
+          const esize = dv.getUint32(q);
+          const etipo = String.fromCharCode(dv.getUint8(q + 4), dv.getUint8(q + 5), dv.getUint8(q + 6), dv.getUint8(q + 7));
+          codecs.push(etipo);
+          if (esize <= 8) break;
+          q += esize;
+        }
+      }
+      p += size;
+    }
+  };
+  try { leer(0, buf.byteLength); } catch {}
+  return codecs;
+}
+const NOMBRE_CODEC = {
+  avc1: "H.264", avc3: "H.264", hev1: "H.265/HEVC", hvc1: "H.265/HEVC",
+  av01: "AV1", vp09: "VP9", mp4a: "audio AAC",
+  apch: "ProRes", apcn: "ProRes", apcs: "ProRes", ap4h: "ProRes 4444",
+};
+
+function parseMP4(buffer) {
+  const dv = new DataView(buffer);
+  const tipo4 = (p) => String.fromCharCode(dv.getUint8(p), dv.getUint8(p + 1), dv.getUint8(p + 2), dv.getUint8(p + 3));
+  const u32 = (p) => dv.getUint32(p);
+  const hijos = (start, end) => {
+    const out = [];
+    let p = start;
+    while (p + 8 <= end) {
+      let size = u32(p); const type = tipo4(p + 4); let body = p + 8;
+      if (size === 1) { if (p + 16 > end) break; size = Number(dv.getBigUint64(p + 8)); body = p + 16; }
+      else if (size === 0) size = end - p;
+      if (size < 8 || p + size > end) break;
+      out.push({ type, start: p, body, end: p + size });
+      p += size;
+    }
+    return out;
+  };
+
+  const raiz = hijos(0, buffer.byteLength);
+  const moov = raiz.find((b) => b.type === "moov");
+  if (!moov) throw new Error("El MP4 no tiene índice moov legible (¿MP4 fragmentado o streaming?). Reexportá como MP4 estándar.");
+
+  const traks = hijos(moov.body, moov.end).filter((b) => b.type === "trak");
+  for (const trak of traks) {
+    const mdia = hijos(trak.body, trak.end).find((b) => b.type === "mdia");
+    if (!mdia) continue;
+    const cajasMdia = hijos(mdia.body, mdia.end);
+    const hdlr = cajasMdia.find((b) => b.type === "hdlr");
+    if (!hdlr || tipo4(hdlr.body + 8) !== "vide") continue;
+
+    const mdhd = cajasMdia.find((b) => b.type === "mdhd");
+    const vMdhd = dv.getUint8(mdhd.body);
+    const timescale = vMdhd === 1 ? u32(mdhd.body + 20) : u32(mdhd.body + 12);
+
+    const minf = cajasMdia.find((b) => b.type === "minf");
+    const stbl = hijos(minf.body, minf.end).find((b) => b.type === "stbl");
+    const caja = {};
+    for (const b of hijos(stbl.body, stbl.end)) caja[b.type] = b;
+
+    const entradas = hijos(caja.stsd.body + 8, caja.stsd.end);
+    const avc1 = entradas.find((b) => b.type === "avc1" || b.type === "avc3");
+    if (!avc1) {
+      const t = entradas[0] ? entradas[0].type : "?";
+      throw new Error('Códec "' + t + '" (' + (NOMBRE_CODEC[t] || "desconocido") + ') no soportado: exportá en H.264.');
+    }
+    const width = dv.getUint16(avc1.body + 24), height = dv.getUint16(avc1.body + 26);
+    const avcC = hijos(avc1.body + 78, avc1.end).find((b) => b.type === "avcC");
+    if (!avcC) throw new Error("No se encontró la configuración avcC del H.264.");
+    const description = new Uint8Array(buffer.slice(avcC.body, avcC.end));
+    const hex = (i) => dv.getUint8(avcC.body + i).toString(16).padStart(2, "0");
+    const codec = "avc1." + hex(1) + hex(2) + hex(3);
+
+    const nS = u32(caja.stsz.body + 8);
+    if (!nS) continue;
+    const szFijo = u32(caja.stsz.body + 4);
+    const sizes = new Array(nS);
+    for (let i = 0; i < nS; i++) sizes[i] = szFijo || u32(caja.stsz.body + 12 + i * 4);
+
+    let chunkOff;
+    if (caja.stco) {
+      const n = u32(caja.stco.body + 4); chunkOff = new Array(n);
+      for (let i = 0; i < n; i++) chunkOff[i] = u32(caja.stco.body + 8 + i * 4);
+    } else {
+      const n = u32(caja.co64.body + 4); chunkOff = new Array(n);
+      for (let i = 0; i < n; i++) chunkOff[i] = Number(dv.getBigUint64(caja.co64.body + 8 + i * 8));
+    }
+
+    const nSC = u32(caja.stsc.body + 4);
+    const stscE = [];
+    for (let i = 0; i < nSC; i++)
+      stscE.push({ first: u32(caja.stsc.body + 8 + i * 12), spc: u32(caja.stsc.body + 12 + i * 12) });
+
+    const offs = new Array(nS);
+    { let s = 0;
+      for (let ci = 0; ci < chunkOff.length && s < nS; ci++) {
+        let spc = stscE[0].spc;
+        for (const e of stscE) { if (e.first <= ci + 1) spc = e.spc; else break; }
+        let off = chunkOff[ci];
+        for (let k = 0; k < spc && s < nS; k++) { offs[s] = off; off += sizes[s]; s++; }
+      }
+    }
+
+    const nTT = u32(caja.stts.body + 4);
+    const dts = new Array(nS);
+    let reloj = 0;
+    { let s = 0;
+      for (let i = 0; i < nTT; i++) {
+        const cnt = u32(caja.stts.body + 8 + i * 8), del = u32(caja.stts.body + 12 + i * 8);
+        for (let k = 0; k < cnt && s < nS; k++) { dts[s] = reloj; reloj += del; s++; }
+      }
+    }
+    const durTotal = reloj / timescale;
+
+    const cts = new Array(nS).fill(0);
+    if (caja.ctts) {
+      const v = dv.getUint8(caja.ctts.body);
+      const n = u32(caja.ctts.body + 4);
+      let s = 0;
+      for (let i = 0; i < n; i++) {
+        const cnt = u32(caja.ctts.body + 8 + i * 8);
+        let off = u32(caja.ctts.body + 12 + i * 8);
+        if (v !== 0 && off > 0x7fffffff) off -= 0x100000000;
+        for (let k = 0; k < cnt && s < nS; k++) { cts[s] = off; s++; }
+      }
+    }
+
+    let keys = null;
+    if (caja.stss) {
+      const n = u32(caja.stss.body + 4);
+      keys = new Set();
+      for (let i = 0; i < n; i++) keys.add(u32(caja.stss.body + 8 + i * 4));
+    }
+
+    const samples = new Array(nS);
+    for (let i = 0; i < nS; i++)
+      samples[i] = {
+        off: offs[i], size: sizes[i],
+        pts: (dts[i] + cts[i]) / timescale,
+        key: keys ? keys.has(i + 1) : true,
+      };
+    return { codec, description, width, height, samples, dur: durTotal };
+  }
+  throw new Error("El MP4 no tiene pista de video.");
+}
+
+function frameAJpeg(frame, maxW = 640) {
+  const w = frame.displayWidth || frame.codedWidth, h = frame.displayHeight || frame.codedHeight;
+  const scale = Math.min(1, maxW / w);
+  const c = document.createElement("canvas");
+  c.width = Math.round(w * scale); c.height = Math.round(h * scale);
+  c.getContext("2d").drawImage(frame, 0, 0, c.width, c.height);
+  return c.toDataURL("image/jpeg", 0.8);
+}
+
+async function crearMotorWebCodecs(file) {
+  if (!("VideoDecoder" in window))
+    throw new Error("Este navegador no tiene WebCodecs (actualizá Chrome/Edge/Safari).");
+  const buf = await file.arrayBuffer();
+  const info = parseMP4(buf);
+  const cfg = { codec: info.codec, codedWidth: info.width, codedHeight: info.height, description: info.description };
+  const sup = await VideoDecoder.isConfigSupported(cfg);
+  if (!sup.supported) throw new Error("El decodificador no acepta este perfil H.264 (" + info.codec + ").");
+
+  const decodeAll = (onFrame, onProg) => new Promise((res, rej) => {
+    let vistos = 0, fallo = null;
+    const dec = new VideoDecoder({
+      output: (f) => {
+        try { onFrame(f); } catch (e) { fallo = e; }
+        f.close();
+        vistos++;
+        if (onProg) onProg(vistos, info.samples.length);
+      },
+      error: (e) => rej(new Error("Fallo del decodificador: " + (e.message || e))),
+    });
+    dec.configure(cfg);
+    (async () => {
+      try {
+        for (const s of info.samples) {
+          if (dec.decodeQueueSize > 80)
+            await new Promise((r) => { dec.addEventListener("dequeue", r, { once: true }); setTimeout(r, 300); });
+          dec.decode(new EncodedVideoChunk({
+            type: s.key ? "key" : "delta",
+            timestamp: Math.round(s.pts * 1e6),
+            data: new Uint8Array(buf, s.off, s.size),
+          }));
+        }
+        await dec.flush();
+        dec.close();
+        fallo ? rej(fallo) : res();
+      } catch (e) { rej(e); }
+    })();
+  });
+
+  return {
+    dur: info.dur,
+    async muestrear(paso, onProg) {
+      const mini = document.createElement("canvas");
+      mini.width = 48; mini.height = 27;
+      const times = [], firmas = [];
+      let nextT = 0;
+      await decodeAll((f) => {
+        const t = f.timestamp / 1e6;
+        if (t + 1e-4 >= nextT) {
+          firmas.push(firmaFrame(f, mini));
+          times.push(t);
+          nextT = nextT + paso;
+        }
+      }, onProg);
+      if (firmas.length < 2) throw new Error("No se decodificaron frames del video.");
+      const diffs = firmas.map((f, i) => (i === 0 ? 0 : difFirmas(firmas[i - 1], f)));
+      return { times, diffs };
+    },
+    async capturarVarios(objetivos, onProg) {
+      const out = new Array(objetivos.length).fill(null);
+      let k = 0;
+      await decodeAll((f) => {
+        const t = f.timestamp / 1e6;
+        while (k < objetivos.length && t + 1e-4 >= objetivos[k]) { out[k] = frameAJpeg(f); k++; }
+      }, onProg);
+      for (let i = 0; i < out.length; i++) if (!out[i]) out[i] = out[i - 1] || null;
+      return out;
+    },
+    destruir() {},
+  };
+}
+
+function crearMotorVideoTag(video) {
+  return {
+    dur: video.duration,
+    async muestrear(paso, onProg) {
+      const mini = document.createElement("canvas");
+      mini.width = 48; mini.height = 27;
+      const times = [], firmas = [];
+      const total = Math.ceil(video.duration / paso);
+      for (let t = 0; t < video.duration; t += paso) {
+        await seekTo(video, t);
+        times.push(t);
+        firmas.push(firmaFrame(video, mini));
+        if (onProg) onProg(firmas.length, total);
+      }
+      if (firmas.length < 2) throw new Error("No se pudieron leer frames del video.");
+      const diffs = firmas.map((f, i) => (i === 0 ? 0 : difFirmas(firmas[i - 1], f)));
+      return { times, diffs };
+    },
+    async capturarVarios(objetivos, onProg) {
+      const out = [];
+      for (let i = 0; i < objetivos.length; i++) {
+        out.push(await capturarFrame(video, objetivos[i]));
+        if (onProg) onProg(i + 1, objetivos.length);
+      }
+      return out;
+    },
+    destruir() { video.src = ""; video.remove(); },
+  };
+}
+
+/* ==================== HELPERS ==================== */
+const uid = () => Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
+const hoy = () => new Date().toISOString();
+const fechaCorta = (iso) => {
+  if (!iso) return "";
+  const d = new Date(iso);
+  const dias = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
+  return dias[d.getDay()] + " " + String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0");
+};
+const codigo = (s) => (s.pieza || "PIEZA").toUpperCase().slice(0, 20) + " (" + (s.toma || 0) + ")";
+
+const AVATAR_COLORES = ["#4C6EF5", "#0CA678", "#E8590C", "#AE3EC9", "#1098AD", "#D6336C", "#66A80F"];
+const colorAvatar = (nombre) => {
+  let h = 0;
+  for (const c of nombre) h = (h * 31 + c.charCodeAt(0)) % 997;
+  return AVATAR_COLORES[h % AVATAR_COLORES.length];
+};
+const iniciales = (n) => n.trim().split(/\s+/).map((p) => p[0]).slice(0, 2).join("").toUpperCase();
+
+function fileToThumb(file, maxW = 640) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("No se pudo leer el archivo"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        try {
+          const scale = Math.min(1, maxW / img.width);
+          const c = document.createElement("canvas");
+          c.width = Math.round(img.width * scale);
+          c.height = Math.round(img.height * scale);
+          c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+          resolve(c.toDataURL("image/jpeg", 0.8));
+        } catch (e) { reject(e); }
+      };
+      img.onerror = () => reject(new Error("Formato de imagen no soportado"));
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ==================== UI ==================== */
+const PRIO_INFO = {
+  3: { nombre: "Alta", color: "#C0392B" },
+  2: { nombre: "Media", color: "#E3A008" },
+  1: { nombre: "Baja", color: "#8A8A85" },
+  0: { nombre: "Sin prioridad", color: "#B8B8B2" },
+};
+/* Nivel de prioridad respetando el 0 (no usar `|| 2`, que trata 0 como vacío). */
+const nivelPrio = (s) => (s && s.prio != null ? s.prio : 0);
+function PrioBars({ nivel = 0, onCiclar }) {
+  const p = PRIO_INFO[nivel] || PRIO_INFO[0];
+  return (
+    <button className="prio-btn" title={"Prioridad: " + p.nombre + " — click para cambiar"} onClick={onCiclar}>
+      {[1, 2, 3].map((n) => (
+        <span key={n} className="prio-barra"
+          style={{ height: 4 + n * 4, background: n <= nivel ? p.color : "var(--border)" }} />
+      ))}
+    </button>
+  );
+}
+function ChipEstado({ estado, onChange }) {
+  const st = ESTADO_STYLE[estado] || ESTADO_STYLE["Producción"];
+  return (
+    <select value={estado} onChange={(e) => onChange(e.target.value)} className="chip-estado"
+      style={{ color: st.color, background: st.bg }} title="Cambiar etapa">
+      {ESTADOS.map((s) => <option key={s} value={s}>{s}</option>)}
+    </select>
+  );
+}
+function Badge({ children }) { return <span className="badge mono">{children}</span>; }
+function Avatar({ nombre }) {
+  if (!nombre) return <span className="avatar avatar-vacio" title="Sin asignar">–</span>;
+  return <span className="avatar" style={{ background: colorAvatar(nombre) }} title={nombre}>{iniciales(nombre)}</span>;
+}
+function NotaPop({ texto }) {
+  if (!texto) return <span className="muted">—</span>;
+  return (
+    <span className="nota-icono" tabIndex={0} aria-label={"Nota: " + texto}>
+      ✱<span className="nota-pop">{texto}</span>
+    </span>
+  );
+}
+function Thumb({ src, ancho = 96, onClick }) {
+  const est = { width: ancho, aspectRatio: "16 / 9" };
+  return src
+    ? <img src={src} alt="" className="thumb" style={est} onClick={onClick} />
+    : <div className="thumb thumb-vacio" style={est} onClick={onClick}>—</div>;
+}
+
+/* ---------- Desglose de video ---------- */
+function ImportarPieza({ file, piezas, onCrear, onCerrar }) {
+  const [fase, setFase] = useState("analizando");
+  const [progreso, setProgreso] = useState(0);
+  const [msj, setMsj] = useState("Leyendo video…");
+  const [detalle, setDetalle] = useState("");
+  const [umbral, setUmbral] = useState(20);
+  const [segs, setSegs] = useState([]);
+  const [pieza, setPieza] = useState("");
+  const [creando, setCreando] = useState(false);
+  const videoRef = useRef(null);
+  const urlRef = useRef(null);
+  const motorRef = useRef(null);
+  const datosRef = useRef(null);
+  const iniciadoRef = useRef(false);
+
+  useEffect(() => {
+    if (iniciadoRef.current) return;
+    iniciadoRef.current = true;
+    analizar();
+  }, []);
+
+  const limpiar = () => {
+    if (motorRef.current) { try { motorRef.current.destruir(); } catch {} motorRef.current = null; }
+    if (urlRef.current) { URL.revokeObjectURL(urlRef.current); urlRef.current = null; }
+    videoRef.current = null;
+  };
+  const cerrar = () => { limpiar(); onCerrar(); };
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape" && !creando) cerrar(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [creando]);
+
+  const cargarVideo = (src) => new Promise((res, rej) => {
+    const video = document.createElement("video");
+    video.muted = true; video.preload = "auto"; video.playsInline = true;
+    video.setAttribute("playsinline", "");
+    video.style.cssText = "position:fixed;left:-9999px;top:0;width:4px;height:4px;opacity:0;pointer-events:none";
+    document.body.appendChild(video);
+    const fallar = (m) => {
+      const err = video.error;
+      const det = err ? " [MediaError " + err.code + (err.message ? ": " + err.message : "") + "]" : "";
+      video.remove(); rej(new Error(m + det));
+    };
+    video.addEventListener("error", () => fallar("El navegador no pudo decodificar este video (probá .mp4 H.264)."), { once: true });
+    video.addEventListener("loadeddata", () => {
+      if (!video.videoWidth) return fallar("El video no tiene pista de imagen legible.");
+      res(video);
+    }, { once: true });
+    setTimeout(() => { if (video.readyState < 2) fallar("El video tardó demasiado en cargar."); }, 20000);
+    video.src = src;
+    video.load();
+  });
+
+  const analizar = async () => {
+    try {
+      setMsj("Leyendo video…");
+      let motor = null;
+      try {
+        urlRef.current = URL.createObjectURL(file);
+        const video = await cargarVideo(urlRef.current);
+        videoRef.current = video;
+        motor = crearMotorVideoTag(video);
+      } catch (e1) {
+        setMsj("Vía directa bloqueada — decodificando con WebCodecs…");
+        motor = await crearMotorWebCodecs(file);
+      }
+      motorRef.current = motor;
+      const dur = motor.dur;
+      if (!dur || !isFinite(dur)) throw new Error("No se pudo leer la duración del video.");
+
+      const r = await motor.muestrear(0.2, (n, total) => {
+        setMsj("Analizando cortes… frame " + n + "/" + total);
+        setProgreso(Math.round((n / total) * 70));
+      });
+      datosRef.current = { times: r.times, diffs: r.diffs, dur };
+      await segmentar(umbral);
+      setFase("revisar");
+    } catch (e) {
+      let msjFinal = e.message || "Error al analizar el video.";
+      let det = "";
+      try {
+        const buf = await file.arrayBuffer();
+        const codecs = buscarCodecs(buf).filter((c) => c !== "mp4a");
+        const soporte = document.createElement("video").canPlayType('video/mp4; codecs="avc1.640028"') || "no";
+        det = "Códec en archivo: " + (codecs.map((c) => c + " (" + (NOMBRE_CODEC[c] || "desconocido") + ")").join(", ") || "no detectado")
+            + " · soporte H.264 del navegador: " + soporte + " · " + e.message;
+        if (codecs.some((c) => c === "hev1" || c === "hvc1"))
+          msjFinal = "Tu archivo está exportado en H.265/HEVC, no en H.264. Este navegador no lo decodifica: reexportá la pieza en H.264 y volvé a intentar.";
+        else if (codecs.some((c) => NOMBRE_CODEC[c] === "ProRes" || NOMBRE_CODEC[c] === "ProRes 4444"))
+          msjFinal = "Tu archivo es ProRes. El navegador no lo decodifica: exportá un proxy H.264 y volvé a intentar.";
+        else if (codecs.some((c) => c === "av01"))
+          msjFinal = "Tu archivo está en AV1. Exportá la pieza en H.264 y volvé a intentar.";
+        else if (codecs.some((c) => c === "avc1" || c === "avc3"))
+          msjFinal = "El archivo es H.264 pero falló la decodificación. Mirá el detalle técnico de abajo.";
+        else
+          msjFinal = "No pude identificar el códec del archivo (¿es un MP4 estándar?). Mirá el detalle técnico de abajo.";
+      } catch { det = e.message; }
+      setMsj(msjFinal);
+      setDetalle(det);
+      setFase("error");
+    }
+  };
+
+  const segmentar = async (u) => {
+    const { times, diffs, dur } = datosRef.current;
+    const cortes = [];
+    for (let i = 1; i < diffs.length; i++) {
+      const esPico = diffs[i] > u && diffs[i] >= (diffs[i - 1] || 0) && diffs[i] >= (diffs[i + 1] || 0);
+      if (esPico) cortes.push(times[i]);
+    }
+    let bordes = [0].concat(cortes, [dur]);
+    const nuevos = [];
+    for (const b of bordes) {
+      if (nuevos.length === 0 || b - nuevos[nuevos.length - 1] >= 0.4) nuevos.push(b);
+      else nuevos[nuevos.length - 1] = b;
+    }
+    bordes = nuevos;
+    const rangos = [];
+    for (let i = 0; i < bordes.length - 1; i++) rangos.push({ ini: bordes[i], fin: bordes[i + 1] });
+    const stills = await motorRef.current.capturarVarios(
+      rangos.map((r) => (r.ini + r.fin) / 2),
+      (n, total) => {
+        setMsj("Capturando stills… " + n + "/" + total);
+        setProgreso(70 + Math.round((n / total) * 30));
+      }
+    );
+    setSegs(rangos.map((r, i) => ({ ini: r.ini, fin: r.fin, still: stills[i], excluida: false })));
+  };
+
+  const recalcular = async () => {
+    setFase("analizando"); setMsj("Recalculando cortes…"); setProgreso(70);
+    await segmentar(umbral);
+    setFase("revisar");
+  };
+
+  const unir = (i) => {
+    setSegs((prev) => {
+      const a = prev[i - 1], b = prev[i];
+      const n = prev.slice();
+      n.splice(i - 1, 2, { ini: a.ini, fin: b.fin, still: a.still, excluida: false });
+      return n;
+    });
+  };
+  const excluir = (i) =>
+    setSegs((prev) => prev.map((s, j) => (j === i ? Object.assign({}, s, { excluida: !s.excluida }) : s)));
+
+  const incluidas = segs.filter((s) => !s.excluida);
+
+  const crear = async () => {
+    if (!pieza.trim()) { setMsj("Poné el nombre de la pieza antes de crear."); return; }
+    setCreando(true);
+    await onCrear(pieza.trim(), incluidas);
+    limpiar();
+  };
+
+  return (
+    <div className="modal-fondo" onMouseDown={(e) => e.target === e.currentTarget && !creando && cerrar()}>
+      <div className="modal modal-ancho" role="dialog" aria-modal="true">
+        <div className="modal-head">
+          <span className="modal-codigo">Desglosar video · {file.name}</span>
+          <button className="btn-fantasma" onClick={cerrar} disabled={creando}>Cerrar ✕</button>
+        </div>
+
+        {fase === "analizando" && (
+          <div className="imp-progreso">
+            <p className="mini muted">{msj}</p>
+            <div className="barra"><i style={{ width: progreso + "%" }} /></div>
+          </div>
+        )}
+
+        {fase === "error" && (
+          <div className="imp-progreso">
+            <p className="error-msg">{msj}</p>
+            {detalle && <p className="mini muted mono imp-detalle">{detalle}</p>}
+            <p className="mini muted">El botón de toma manual sigue disponible mientras tanto.</p>
+          </div>
+        )}
+
+        {fase === "revisar" && (
+          <React.Fragment>
+            <div className="imp-controles">
+              <label className="imp-pieza">Pieza
+                <input list="lista-piezas-imp" value={pieza} placeholder="Nombre de la pieza"
+                  onChange={(e) => setPieza(e.target.value)} />
+                <datalist id="lista-piezas-imp">{piezas.map((p) => <option key={p} value={p} />)}</datalist>
+              </label>
+              <label className="imp-sens">Sensibilidad de corte
+                <div className="imp-slider">
+                  <input type="range" min="8" max="45" value={umbral}
+                    onChange={(e) => setUmbral(parseInt(e.target.value))} />
+                  <button className="btn-fantasma" onClick={recalcular}>Recalcular</button>
+                </div>
+                <span className="mini muted">Menos = detecta más cortes · Más = detecta menos</span>
+              </label>
+            </div>
+
+            <p className="mini muted imp-ayuda">
+              Revisá el desglose: <b>Unir ◀</b> pega una toma con la anterior (corte falso) ·
+              <b> Excluir</b> la deja afuera (placas, claquetas, colas).
+            </p>
+
+            <div className="imp-grid">
+              {segs.map((s, i) => (
+                <div key={i} className={"imp-card" + (s.excluida ? " excluida" : "")}>
+                  <img src={s.still} alt="" />
+                  <div className="imp-card-info">
+                    <span className="mini"><b>Toma {i + 1}</b></span>
+                    <span className="mini mono muted">{tcFmt(s.ini)}–{tcFmt(s.fin)} · {(s.fin - s.ini).toFixed(1)}s</span>
+                  </div>
+                  <div className="imp-card-acciones">
+                    {i > 0 && !s.excluida && (
+                      <button className="btn-mini" title="Unir con la toma anterior" onClick={() => unir(i)}>Unir ◀</button>
+                    )}
+                    <button className="btn-mini" onClick={() => excluir(i)}>{s.excluida ? "Incluir" : "Excluir"}</button>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="modal-pie">
+              {msj && !creando && msj.indexOf("pieza") !== -1 && <span className="error-msg mini">{msj}</span>}
+              <span className="mini muted">{incluidas.length} tomas a crear</span>
+              <button className="btn-primario" onClick={crear} disabled={creando || incluidas.length === 0}>
+                {creando ? "Creando tomas…" : "Crear " + incluidas.length + " tomas"}
+              </button>
+            </div>
+          </React.Fragment>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ---------- Modal de toma ---------- */
+function ModalToma({ inicial, piezas, responsables, onGuardar, onCerrar, stillActual }) {
+  const [f, setF] = useState(inicial);
+  const [thumb, setThumb] = useState(stillActual || null);
+  const [thumbNueva, setThumbNueva] = useState(null);
+  const [error, setError] = useState("");
+  const fileRef = useRef();
+  const set = (k, v) => setF((p) => Object.assign({}, p, { [k]: v }));
+
+  useEffect(() => {
+    const onKey = (e) => { if (e.key === "Escape") onCerrar(); };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [onCerrar]);
+
+  const onFile = async (file) => {
+    if (!file) return;
+    setError("");
+    try {
+      const b64 = await fileToThumb(file);
+      setThumb(b64); setThumbNueva(b64);
+    } catch (e) { setError("No se pudo procesar la imagen: " + e.message); }
+  };
+
+  const guardar = () => {
+    if (!f.pieza.trim()) { setError("Falta el nombre de la pieza."); return; }
+    onGuardar(f, thumbNueva);
+  };
+
+  return (
+    <div className="modal-fondo" onMouseDown={(e) => e.target === e.currentTarget && onCerrar()}>
+      <div className="modal" role="dialog" aria-modal="true">
+        <div className="modal-head">
+          <span className="modal-codigo">{codigo(f)} <Badge>v{f.version || 1}</Badge></span>
+          <button className="btn-fantasma" onClick={onCerrar}>Cerrar ✕</button>
+        </div>
+
+        <div className="modal-grid">
+          <div className="drop-still" onClick={() => fileRef.current.click()}
+            onDragOver={(e) => e.preventDefault()}
+            onDrop={(e) => { e.preventDefault(); onFile(e.dataTransfer.files[0]); }}>
+            {thumb ? <img src={thumb} alt="still" /> : (
+              <div className="drop-vacio">
+                <span>Arrastrá el still acá</span>
+                <span className="mini">o hacé click para subirlo</span>
+              </div>
+            )}
+            <input ref={fileRef} type="file" accept="image/*" hidden
+              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => { onFile(e.target.files[0]); e.target.value = ""; }} />
+          </div>
+
+          <div className="campos">
+            <label>Pieza
+              <input list="lista-piezas" value={f.pieza} placeholder="Ej: Hero, Backstage, Bumper…"
+                onChange={(e) => set("pieza", e.target.value)} />
+              <datalist id="lista-piezas">{piezas.map((p) => <option key={p} value={p} />)}</datalist>
+            </label>
+            <div className="fila-2">
+              <label>N° de toma
+                <input type="number" min="0" value={f.toma}
+                  onChange={(e) => set("toma", parseInt(e.target.value) || 0)} />
+              </label>
+              <label>Versión
+                <input type="number" min="1" value={f.version}
+                  onChange={(e) => set("version", parseInt(e.target.value) || 1)} />
+              </label>
+            </div>
+            <label>Responsable
+              <input list="lista-resp" value={f.responsable} placeholder="Quién la trabaja"
+                onChange={(e) => set("responsable", e.target.value)} />
+              <datalist id="lista-resp">{responsables.map((r) => <option key={r} value={r} />)}</datalist>
+            </label>
+            <label>Etapa
+              <select value={f.estado} onChange={(e) => set("estado", e.target.value)}>
+                {ESTADOS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </label>
+          </div>
+        </div>
+
+        <label className="label-block">Prompt de la toma
+          <textarea rows="3" value={f.prompt} placeholder="Prompt usado para generar esta versión"
+            onChange={(e) => set("prompt", e.target.value)} />
+        </label>
+        <label className="label-block">Notas / QC
+          <textarea rows="2" value={f.notas} placeholder="Feedback, errores detectados, ajustes pendientes…"
+            onChange={(e) => set("notas", e.target.value)} />
+        </label>
+
+        {f.historial && f.historial.length > 0 && (
+          <div className="historial">
+            <span className="mini muted">Historial:</span>
+            {f.historial.map((h, i) => (
+              <span key={i} className="mono mini hist-item">v{h.v} · {fechaCorta(h.fecha)}</span>
+            ))}
+          </div>
+        )}
+
+        <div className="modal-pie">
+          {error && <span className="error-msg mini">{error}</span>}
+          <button className="btn-primario" onClick={guardar}>Guardar toma</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ==================== APP ==================== */
+function App() {
+  const [shots, setShots] = useState([]);
+  const [stills, setStills] = useState({});
+  const [cargando, setCargando] = useState(true);
+  const [vista, setVista] = useState("tabla");
+  const [modal, setModal] = useState(null);
+  const [lightbox, setLightbox] = useState(null);
+  const [fPieza, setFPieza] = useState(null);
+  const [fEstado, setFEstado] = useState(null);
+  const [fResp, setFResp] = useState(null);
+  const [busqueda, setBusqueda] = useState("");
+  const [guardado, setGuardado] = useState("");
+  const [dragId, setDragId] = useState(null);
+  const [confirmarId, setConfirmarId] = useState(null);
+  const [importar, setImportar] = useState(null);
+  const [degradado, setDegradado] = useState(false);
+  const [nuevoResp, setNuevoResp] = useState(null);
+  const [orden, setOrden] = useState({ key: "pieza", dir: 1 });
+  const fileVideoRef = useRef();
+  const fileBackupRef = useRef();
+  /* Espejo de `shots` para leer siempre el último valor dentro de los handlers
+     (evita pisar cambios al editar varias tomas muy seguido / en colaboración). */
+  const shotsRef = useRef(shots);
+  useEffect(() => { shotsRef.current = shots; }, [shots]);
+
+  const ordenarPor = (key) =>
+    setOrden((o) => (o.key === key ? { key, dir: -o.dir } : { key, dir: key === "fecha" ? -1 : 1 }));
+
+  const cargarTodo = async () => {
+    const s = await cargarData();
+    setShots(s);
+    setDegradado(modoDegradado);
+    setCargando(false);
+    s.filter((x) => x.hasStill).forEach(async (x) => {
+      const b64 = await cargarStill(x.id);
+      if (b64) setStills((prev) => Object.assign({}, prev, { [x.id]: b64 }));
+    });
+  };
+  useEffect(() => { cargarTodo(); }, []);
+
+  const persistir = async (nuevos) => {
+    setShots(nuevos);
+    const ok = await guardarData(nuevos);
+    setDegradado(modoDegradado);
+    setGuardado(ok
+      ? "Guardado " + new Date().toLocaleTimeString("es-AR", { hour: "2-digit", minute: "2-digit" })
+      : "Error al guardar");
+  };
+
+  const piezas = useMemo(() => Array.from(new Set(shots.map((s) => s.pieza).filter(Boolean))).sort(), [shots]);
+  const responsables = useMemo(() => Array.from(new Set([...RESPONSABLES_BASE, ...shots.map((s) => s.responsable).filter(Boolean)])).sort(), [shots]);
+  const sinAsignar = useMemo(() => shots.filter((s) => !s.responsable).length, [shots]);
+
+  const cuentaEstado = (e) => shots.filter((s) => s.estado === e).length;
+  const cuentaResp = (r) => shots.filter((s) => s.responsable === r).length;
+  const cuentaPieza = (p) => shots.filter((s) => s.pieza === p).length;
+
+  const filtradas = useMemo(() => {
+    const q = busqueda.toLowerCase();
+    const base = shots
+      .filter((s) => !fPieza || s.pieza === fPieza)
+      .filter((s) => !fEstado || s.estado === fEstado)
+      .filter((s) => fResp === null || (fResp === "" ? !s.responsable : s.responsable === fResp))
+      .filter((s) => !q || [s.pieza, s.toma, s.responsable, s.estado, s.notas, s.prompt, s.tc].join(" ").toLowerCase().includes(q));
+
+    const cmp = {
+      prio: (a, b) => nivelPrio(b) - nivelPrio(a),
+      still: (a, b) => (b.hasStill ? 1 : 0) - (a.hasStill ? 1 : 0),
+      pieza: (a, b) => a.pieza.localeCompare(b.pieza) || a.toma - b.toma,
+      notas: (a, b) => (b.notas ? 1 : 0) - (a.notas ? 1 : 0),
+      version: (a, b) => a.version - b.version,
+      responsable: (a, b) => (a.responsable || "\uffff").localeCompare(b.responsable || "\uffff"),
+      estado: (a, b) => ESTADOS.indexOf(a.estado) - ESTADOS.indexOf(b.estado),
+      fecha: (a, b) => (a.updatedAt || "").localeCompare(b.updatedAt || ""),
+    }[orden.key] || (() => 0);
+
+    return base.slice().sort((a, b) => {
+      const r = cmp(a, b) * orden.dir;
+      return r !== 0 ? r : a.pieza.localeCompare(b.pieza) || a.toma - b.toma;
+    });
+  }, [shots, fPieza, fEstado, fResp, busqueda, orden]);
+
+  const nuevaToma = () => {
+    const piezaActiva = fPieza || "";
+    const proximaToma = piezaActiva
+      ? Math.max(0, ...shotsRef.current.filter((s) => s.pieza === piezaActiva).map((s) => s.toma)) + 1 : 1;
+    setModal({ shot: {
+      id: uid(), pieza: piezaActiva, toma: proximaToma, version: 1,
+      responsable: "", estado: "Producción", prompt: "", notas: "",
+      historial: [], hasStill: false, updatedAt: hoy(),
+    }});
+  };
+
+  const guardarToma = async (f, thumbNueva) => {
+    const shot = Object.assign({}, f, { updatedAt: hoy(), hasStill: f.hasStill || !!thumbNueva });
+    if (thumbNueva) {
+      await guardarStill(shot.id, thumbNueva);
+      setStills((p) => Object.assign({}, p, { [shot.id]: thumbNueva }));
+    }
+    const existe = shotsRef.current.some((s) => s.id === shot.id);
+    await persistir(existe ? shotsRef.current.map((s) => (s.id === shot.id ? shot : s)) : shotsRef.current.concat([shot]));
+    setModal(null);
+  };
+
+  const cambiarEstado = (id, estado) =>
+    persistir(shotsRef.current.map((s) => (s.id === id ? Object.assign({}, s, { estado, updatedAt: hoy() }) : s)));
+  const cambiarResp = (id, responsable) =>
+    persistir(shotsRef.current.map((s) => (s.id === id ? Object.assign({}, s, { responsable, updatedAt: hoy() }) : s)));
+  const ciclarPrio = (id) =>
+    persistir(shotsRef.current.map((s) => (s.id === id ? Object.assign({}, s, { prio: (nivelPrio(s) + 1) % 4, updatedAt: hoy() }) : s)));
+  const subirVersion = (id) =>
+    persistir(shotsRef.current.map((s) => (s.id === id
+      ? Object.assign({}, s, {
+          version: s.version + 1, estado: "Producción",
+          historial: (s.historial || []).concat([{ v: s.version, fecha: s.updatedAt }]),
+          updatedAt: hoy(),
+        })
+      : s)));
+
+  const borrarToma = async (id) => {
+    if (confirmarId !== id) {
+      setConfirmarId(id);
+      setTimeout(() => setConfirmarId((c) => (c === id ? null : c)), 3000);
+      return;
+    }
+    setConfirmarId(null);
+    await borrarStill(id);
+    await persistir(shotsRef.current.filter((s) => s.id !== id));
+  };
+
+  const crearDesglose = async (pieza, segmentos) => {
+    const base = Math.max(0, ...shotsRef.current.filter((s) => s.pieza === pieza).map((s) => s.toma));
+    const nuevas = [];
+    for (let i = 0; i < segmentos.length; i++) {
+      const seg = segmentos[i];
+      const shot = {
+        id: uid(), pieza, toma: base + i + 1, version: 1,
+        responsable: "", estado: "Producción", prompt: "", notas: "",
+        tc: tcFmt(seg.ini) + "–" + tcFmt(seg.fin),
+        historial: [], hasStill: true, updatedAt: hoy(),
+      };
+      await guardarStill(shot.id, seg.still);
+      setStills((p) => Object.assign({}, p, { [shot.id]: seg.still }));
+      nuevas.push(shot);
+    }
+    await persistir(shotsRef.current.concat(nuevas));
+    setImportar(null);
+    setFPieza(pieza);
+  };
+
+  const exportar = async () => {
+    const data = await exportarTodo();
+    const blob = new Blob([JSON.stringify(data)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "piedra-tomas-" + new Date().toISOString().slice(0, 10) + ".json";
+    a.click();
+    URL.revokeObjectURL(a.href);
+  };
+
+  const importarBackup = async (file) => {
+    if (!file) return;
+    try {
+      const texto = await file.text();
+      const data = JSON.parse(texto);
+      const fusionar = shots.length > 0 &&
+        window.confirm("Ya hay tomas cargadas.\n\nAceptar = FUSIONAR (agrega las que falten)\nCancelar = REEMPLAZAR todo por el backup");
+      const nuevos = await importarTodo(data, fusionar ? "fusionar" : "reemplazar");
+      setShots(nuevos);
+      setStills({});
+      nuevos.filter((x) => x.hasStill).forEach(async (x) => {
+        const b64 = await cargarStill(x.id);
+        if (b64) setStills((prev) => Object.assign({}, prev, { [x.id]: b64 }));
+      });
+      setGuardado("Backup importado: " + nuevos.length + " tomas");
+    } catch (e) {
+      alert("No se pudo importar el backup: " + e.message);
+    }
+  };
+
+  if (cargando) return <div className="app"><div className="cargando">Cargando tablero…</div></div>;
+
+  const FiltroItem = ({ activo, onClick, dot, children, count }) => (
+    <button className={"filtro-item" + (activo ? " on" : "")} onClick={onClick}>
+      {dot && <span className="dot" style={{ background: dot }} />}
+      <span className="filtro-nombre">{children}</span>
+      <span className="filtro-count mono">{count}</span>
+    </button>
+  );
+
+  return (
+    <div className="app">
+      <div className="layout">
+        <aside className="sidebar">
+          <div className="sb-titulo">
+            <span className="sb-label">Tomas · Piedra</span>
+            <span className="sb-num">{shots.length}</span>
+          </div>
+
+          <div className="sb-seccion">
+            <span className="sb-label">Estado</span>
+            {ESTADOS.map((e) => (
+              <FiltroItem key={e} activo={fEstado === e} dot={ESTADO_STYLE[e].dot}
+                onClick={() => setFEstado(fEstado === e ? null : e)} count={cuentaEstado(e)}>{e}</FiltroItem>
+            ))}
+          </div>
+
+          {(responsables.length > 0 || sinAsignar > 0) && (
+            <div className="sb-seccion">
+              <span className="sb-label">Responsable</span>
+              {responsables.map((r) => (
+                <FiltroItem key={r} activo={fResp === r}
+                  onClick={() => setFResp(fResp === r ? null : r)} count={cuentaResp(r)}>
+                  <Avatar nombre={r} /> {r}
+                </FiltroItem>
+              ))}
+              {sinAsignar > 0 && (
+                <FiltroItem activo={fResp === ""} onClick={() => setFResp(fResp === "" ? null : "")} count={sinAsignar}>
+                  <Avatar nombre="" /> Sin asignar
+                </FiltroItem>
+              )}
+            </div>
+          )}
+
+          {piezas.length > 0 && (
+            <div className="sb-seccion">
+              <span className="sb-label">Piezas</span>
+              {piezas.map((p) => (
+                <FiltroItem key={p} activo={fPieza === p}
+                  onClick={() => setFPieza(fPieza === p ? null : p)} count={cuentaPieza(p)}>{p}</FiltroItem>
+              ))}
+            </div>
+          )}
+
+          <div className="sb-pie">
+            <button className="btn-fantasma" onClick={exportar}>⭳ Exportar backup</button>
+            <button className="btn-fantasma" onClick={() => fileBackupRef.current.click()}>⭱ Importar backup</button>
+            <input ref={fileBackupRef} type="file" accept="application/json,.json" hidden
+              onChange={(e) => { importarBackup(e.target.files[0]); e.target.value = ""; }} />
+            <span className="mini muted">{guardado}</span>
+            {degradado ? (
+              <div className="aviso">
+                <b>Guardado limitado.</b> Estás abriendo el archivo directo desde la compu. Los stills pueden no guardarse.
+                Subilo a un servidor (o servilo con un servidor local) para que funcione al 100%.
+              </div>
+            ) : (
+              <span className="mini muted">Los datos se guardan en este navegador. Exportá backup seguido.</span>
+            )}
+          </div>
+        </aside>
+
+        <main className="main">
+          <div className="barra-top">
+            <div className="buscador-wrap">
+              <span className="lupa">⌕</span>
+              <input className="buscador" placeholder="Buscar toma, nota, prompt, pieza…"
+                value={busqueda} onChange={(e) => setBusqueda(e.target.value)} />
+            </div>
+            <div className="toggle-vista">
+              <button className={vista === "tabla" ? "on" : ""} onClick={() => setVista("tabla")}>Tabla</button>
+              <button className={vista === "kanban" ? "on" : ""} onClick={() => setVista("kanban")}>Kanban</button>
+            </div>
+            <button className="btn-fantasma" onClick={() => fileVideoRef.current.click()}
+              title="Subir un .mp4 y detectar las tomas automáticamente">⧉ Desglosar video</button>
+            <input ref={fileVideoRef} type="file" accept="video/mp4,video/*" hidden
+              onChange={(e) => { if (e.target.files[0]) setImportar({ file: e.target.files[0] }); e.target.value = ""; }} />
+            <button className="btn-primario" onClick={nuevaToma}>+ Nueva toma</button>
+          </div>
+
+          {filtradas.length === 0 ? (
+            <div className="vacio">
+              <p>No hay tomas{(fPieza || fEstado || fResp !== null || busqueda) ? " con estos filtros" : " todavía"}.</p>
+              <button className="btn-primario" onClick={nuevaToma}>Cargar la primera toma</button>
+            </div>
+          ) : vista === "tabla" ? (
+            <div className="tabla-wrap">
+              <table>
+                <thead>
+                  <tr>
+                    {[["prio","Prio"],["still","Still"],["pieza","Pieza / Toma"],["notas","Notas"],
+                      ["version","Ver"],["responsable","Resp"],["estado","Estado"],["fecha","Fecha"]].map((par) => (
+                      <th key={par[0]} className={"th-orden" + (orden.key === par[0] ? " on" : "")}
+                        onClick={() => ordenarPor(par[0])} title={"Ordenar por " + par[1].toLowerCase()}>
+                        {par[1]}
+                        <span className="flecha">{orden.key === par[0] ? (orden.dir === 1 ? "▲" : "▼") : ""}</span>
+                      </th>
+                    ))}
+                    <th></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtradas.map((s) => (
+                    <tr key={s.id}>
+                      <td className="centrado"><PrioBars nivel={nivelPrio(s)} onCiclar={() => ciclarPrio(s.id)} /></td>
+                      <td><Thumb src={stills[s.id]} onClick={() => stills[s.id] && setLightbox(stills[s.id])} /></td>
+                      <td>
+                        <div className="codigo-toma">{codigo(s)}</div>
+                        {(s.tc || s.prompt) && (
+                          <div className="mini muted linea-corta" title={s.prompt || ""}>
+                            {s.tc && <span className="mono tc-tag">{s.tc}</span>}{s.tc && s.prompt ? " · " : ""}{s.prompt}
+                          </div>
+                        )}
+                      </td>
+                      <td className="centrado"><NotaPop texto={s.notas} /></td>
+                      <td><Badge>v{s.version}</Badge></td>
+                      <td>
+                        {nuevoResp && nuevoResp.id === s.id ? (
+                          <input autoFocus className="resp-input" placeholder="Nombre…" value={nuevoResp.valor}
+                            onChange={(e) => setNuevoResp({ id: s.id, valor: e.target.value })}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") { cambiarResp(s.id, nuevoResp.valor.trim()); setNuevoResp(null); }
+                              if (e.key === "Escape") setNuevoResp(null);
+                            }}
+                            onBlur={() => {
+                              if (nuevoResp.valor.trim()) cambiarResp(s.id, nuevoResp.valor.trim());
+                              setNuevoResp(null);
+                            }} />
+                        ) : (
+                          <span className="resp-cell">
+                            <Avatar nombre={s.responsable} />
+                            <select className="resp-select" value={s.responsable || ""}
+                              onChange={(e) => {
+                                if (e.target.value === "__nuevo__") setNuevoResp({ id: s.id, valor: "" });
+                                else cambiarResp(s.id, e.target.value);
+                              }}>
+                              <option value="">Sin asignar</option>
+                              {responsables.map((r) => <option key={r} value={r}>{r}</option>)}
+                              <option value="__nuevo__">＋ Agregar nombre…</option>
+                            </select>
+                          </span>
+                        )}
+                      </td>
+                      <td><ChipEstado estado={s.estado} onChange={(v) => cambiarEstado(s.id, v)} /></td>
+                      <td className="mini muted fecha-cell">📅 {fechaCorta(s.updatedAt)}</td>
+                      <td className="acciones">
+                        <button className="btn-mini" title="Nueva versión (vuelve a Producción)" onClick={() => subirVersion(s.id)}>v+</button>
+                        <button className="btn-mini" title="Editar" onClick={() => setModal({ shot: s })}>✎</button>
+                        <button className={"btn-mini rojo" + (confirmarId === s.id ? " confirmando" : "")}
+                          title="Borrar" onClick={() => borrarToma(s.id)}>
+                          {confirmarId === s.id ? "¿Seguro?" : "✕"}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="kanban">
+              {ESTADOS.map((est) => (
+                <div key={est} className="col"
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={() => { if (dragId) { cambiarEstado(dragId, est); setDragId(null); } }}>
+                  <div className="col-head">
+                    <span className="dot" style={{ background: ESTADO_STYLE[est].dot }} />
+                    {est}
+                    <span className="mono muted">{filtradas.filter((s) => s.estado === est).length}</span>
+                  </div>
+                  {filtradas.filter((s) => s.estado === est).map((s) => (
+                    <div key={s.id} className="card" draggable
+                      onDragStart={() => setDragId(s.id)}
+                      onClick={() => setModal({ shot: s })}>
+                      <div className="card-thumb"><Thumb src={stills[s.id]} ancho="100%" /></div>
+                      <div className="codigo-toma">{codigo(s)}</div>
+                      <div className="mini card-meta">
+                        <span className="resp-cell"><Avatar nombre={s.responsable} /><Badge>v{s.version}</Badge></span>
+                        {s.notas && <NotaPop texto={s.notas} />}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </main>
+      </div>
+
+      {importar && (
+        <ImportarPieza file={importar.file} piezas={piezas}
+          onCrear={crearDesglose} onCerrar={() => setImportar(null)} />
+      )}
+      {modal && (
+        <ModalToma inicial={modal.shot} piezas={piezas} responsables={responsables}
+          stillActual={stills[modal.shot.id]} onGuardar={guardarToma} onCerrar={() => setModal(null)} />
+      )}
+      {lightbox && (
+        <div className="modal-fondo lightbox" onClick={() => setLightbox(null)}>
+          <img src={lightbox} alt="still" />
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+</script>
+</body>
+</html>
