@@ -287,34 +287,44 @@ async function guardarData(shots) {
     return true;
   } catch (e) { console.error("guardarData", e); return false; }
 }
+/* Stills en la nube (tabla `stills`: id, data = data URL base64). */
 async function guardarStill(id, b64) {
-  if (modoDegradado) { try { ls.setStill(id, b64); } catch (e) { console.error("Sin espacio para el still", e); } return; }
-  try { await tx(ST_STILLS, "readwrite", (s) => s.put(b64, id)); }
-  catch (e) { modoDegradado = true; try { ls.setStill(id, b64); } catch {} }
+  const { error } = await sb.from("stills").upsert({ id, data: b64 });
+  if (error) console.error("guardarStill", error);
 }
 async function cargarStill(id) {
-  if (modoDegradado) return ls.getStill(id);
-  try { const r = await tx(ST_STILLS, "readonly", (s) => s.get(id)); return r || null; }
-  catch { modoDegradado = true; return ls.getStill(id); }
+  const { data, error } = await sb.from("stills").select("data").eq("id", id).maybeSingle();
+  if (error) { console.error("cargarStill", error); return null; }
+  return data ? data.data : null;
+}
+/* Trae muchos stills en una sola consulta (en tandas de 100 por límite de URL). */
+async function cargarStillsBatch(ids) {
+  const out = {};
+  for (let i = 0; i < ids.length; i += 100) {
+    const chunk = ids.slice(i, i + 100);
+    const { data, error } = await sb.from("stills").select("id,data").in("id", chunk);
+    if (error) { console.error("cargarStillsBatch", error); continue; }
+    for (const r of (data || [])) out[r.id] = r.data;
+  }
+  return out;
 }
 async function borrarStill(id) {
-  if (modoDegradado) { ls.delStill(id); return; }
-  try { await tx(ST_STILLS, "readwrite", (s) => s.delete(id)); } catch {}
+  const { error } = await sb.from("stills").delete().eq("id", id);
+  if (error) console.error("borrarStill", error);
 }
-/* Adjuntos (referencias: imágenes, videos, audios). Se guardan como data URL, igual que los stills. */
+/* Adjuntos (referencias: imágenes, videos, audios) como data URL, en la nube (tabla `adjuntos`). */
 async function guardarAdjunto(id, dataURL) {
-  if (modoDegradado) { try { ls.setAdjunto(id, dataURL); } catch (e) { console.error("Sin espacio para el adjunto", e); } return; }
-  try { await tx(ST_ADJUNTOS, "readwrite", (s) => s.put(dataURL, id)); }
-  catch (e) { modoDegradado = true; try { ls.setAdjunto(id, dataURL); } catch {} }
+  const { error } = await sb.from("adjuntos").upsert({ id, data: dataURL });
+  if (error) console.error("guardarAdjunto", error);
 }
 async function cargarAdjunto(id) {
-  if (modoDegradado) return ls.getAdjunto(id);
-  try { const r = await tx(ST_ADJUNTOS, "readonly", (s) => s.get(id)); return r || null; }
-  catch { modoDegradado = true; return ls.getAdjunto(id); }
+  const { data, error } = await sb.from("adjuntos").select("data").eq("id", id).maybeSingle();
+  if (error) { console.error("cargarAdjunto", error); return null; }
+  return data ? data.data : null;
 }
 async function borrarAdjunto(id) {
-  if (modoDegradado) { ls.delAdjunto(id); return; }
-  try { await tx(ST_ADJUNTOS, "readwrite", (s) => s.delete(id)); } catch {}
+  const { error } = await sb.from("adjuntos").delete().eq("id", id);
+  if (error) console.error("borrarAdjunto", error);
 }
 /* Video fuente del desglose: se guarda como Blob (pesado), NO va al backup. En modo degradado (file://) se omite. */
 async function guardarVideoFuente(id, blob) {
@@ -1303,10 +1313,11 @@ function App() {
     setShots(s);
     setDegradado(modoDegradado);
     setCargando(false);
-    s.filter((x) => x.hasStill).forEach(async (x) => {
-      const b64 = await cargarStill(x.id);
-      if (b64) setStills((prev) => Object.assign({}, prev, { [x.id]: b64 }));
-    });
+    const conStill = s.filter((x) => x.hasStill).map((x) => x.id);
+    if (conStill.length) {
+      const mapa = await cargarStillsBatch(conStill);
+      if (Object.keys(mapa).length) setStills((prev) => Object.assign({}, prev, mapa));
+    }
   };
   useEffect(() => { cargarTodo(); }, []);
 
@@ -1453,11 +1464,8 @@ function App() {
         window.confirm("Ya hay tomas cargadas.\n\nAceptar = FUSIONAR (agrega las que falten)\nCancelar = REEMPLAZAR todo por el backup");
       const nuevos = await importarTodo(data, fusionar ? "fusionar" : "reemplazar");
       setShots(nuevos);
-      setStills({});
-      nuevos.filter((x) => x.hasStill).forEach(async (x) => {
-        const b64 = await cargarStill(x.id);
-        if (b64) setStills((prev) => Object.assign({}, prev, { [x.id]: b64 }));
-      });
+      const mapa = await cargarStillsBatch(nuevos.filter((x) => x.hasStill).map((x) => x.id));
+      setStills(mapa);
       setGuardado("Backup importado: " + nuevos.length + " tomas");
     } catch (e) {
       alert("No se pudo importar el backup: " + e.message);
