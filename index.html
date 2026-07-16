@@ -710,6 +710,10 @@ const fechaCorta = (iso) => {
   const dias = ["Dom", "Lun", "Mar", "Mié", "Jue", "Vie", "Sáb"];
   return dias[d.getDay()] + " " + String(d.getDate()).padStart(2, "0") + "/" + String(d.getMonth() + 1).padStart(2, "0");
 };
+const diasEntre = (a, b) => {
+  if (!a || !b) return 0;
+  return Math.max(0, Math.round((new Date(b) - new Date(a)) / 86400000));
+};
 const codigo = (s) => (s.pieza || "PIEZA").toUpperCase().slice(0, 20) + " (" + (s.toma || 0) + ")";
 
 const AVATAR_COLORES = ["#4C6EF5", "#0CA678", "#E8590C", "#AE3EC9", "#1098AD", "#D6336C", "#66A80F"];
@@ -1188,14 +1192,19 @@ function ModalToma({ inicial, piezas, responsables, onGuardar, onCerrar, stillAc
                 onChange={(e) => set("responsable", e.target.value)} />
               <datalist id="lista-resp">{responsables.map((r) => <option key={r} value={r} />)}</datalist>
             </label>
+            <label>Etapa
+              <select value={f.estado} onChange={(e) => set("estado", e.target.value)}>
+                {ESTADOS.map((s) => <option key={s} value={s}>{s}</option>)}
+              </select>
+            </label>
             <div className="fila-2">
-              <label>Etapa
-                <select value={f.estado} onChange={(e) => set("estado", e.target.value)}>
-                  {ESTADOS.map((s) => <option key={s} value={s}>{s}</option>)}
-                </select>
-              </label>
               <label>Fecha de entrega
                 <input type="date" value={f.fechaEntrega || ""} onChange={(e) => set("fechaEntrega", e.target.value)} />
+              </label>
+              <label>Iteraciones <span className="mini muted">(al terminar)</span>
+                <input type="number" min="0" placeholder="0"
+                  value={f.iteraciones != null ? f.iteraciones : ""}
+                  onChange={(e) => set("iteraciones", e.target.value === "" ? null : (parseInt(e.target.value) || 0))} />
               </label>
             </div>
           </div>
@@ -1261,7 +1270,11 @@ function ModalToma({ inicial, piezas, responsables, onGuardar, onCerrar, stillAc
               <span className="video-fuente-play">▶</span>
             </button>
           )}
-          <span className="mini muted">Subida: {fechaCorta(f.createdAt || f.updatedAt)} · Últ. cambio: {fechaCorta(f.updatedAt)}</span>
+          <span className="mini muted">
+            Subida: {fechaCorta(f.createdAt || f.updatedAt)} · Últ. cambio: {fechaCorta(f.updatedAt)}
+            {f.createdAt ? " · ⏱ " + diasEntre(f.createdAt, f.completadaAt || (f.estado === "Aprobada" ? f.updatedAt : hoy())) + "d " + ((f.completadaAt || f.estado === "Aprobada") ? "(terminada)" : "(en curso)") : ""}
+            {f.iteraciones != null ? " · " + f.iteraciones + " iter." : ""}
+          </span>
         </div>
 
         <div className="modal-pie">
@@ -1376,7 +1389,10 @@ function App() {
   };
 
   const guardarToma = async (f, thumbNueva) => {
-    const shot = Object.assign({}, f, { updatedAt: hoy(), hasStill: f.hasStill || !!thumbNueva });
+    const shot = Object.assign({}, f, {
+      updatedAt: hoy(), hasStill: f.hasStill || !!thumbNueva,
+      completadaAt: f.estado === "Aprobada" ? (f.completadaAt || hoy()) : f.completadaAt,
+    });
     if (thumbNueva) {
       await guardarStill(shot.id, thumbNueva);
       setStills((p) => Object.assign({}, p, { [shot.id]: thumbNueva }));
@@ -1387,7 +1403,10 @@ function App() {
   };
 
   const cambiarEstado = (id, estado) =>
-    persistir(shotsRef.current.map((s) => (s.id === id ? Object.assign({}, s, { estado, updatedAt: hoy() }) : s)));
+    persistir(shotsRef.current.map((s) => (s.id === id ? Object.assign({}, s, {
+      estado, updatedAt: hoy(),
+      completadaAt: estado === "Aprobada" ? (s.completadaAt || hoy()) : s.completadaAt,
+    }) : s)));
   const cambiarResp = (id, responsable) =>
     persistir(shotsRef.current.map((s) => (s.id === id ? Object.assign({}, s, { responsable, updatedAt: hoy() }) : s)));
   const cambiarFechaEntrega = (id, fechaEntrega) =>
