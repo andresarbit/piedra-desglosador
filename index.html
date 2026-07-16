@@ -137,6 +137,8 @@
   .adj-item-pie{display:flex; align-items:center; gap:6px; padding:6px 8px; color:var(--ink); font-weight:400}
   .adj-nombre{flex:1; overflow:hidden; white-space:nowrap; text-overflow:ellipsis}
   .adj-cargando{padding:24px 8px; text-align:center}
+  .entrega-item{max-width:340px}
+  .entrega-archivo{padding:18px 12px; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink)}
   .modal-pie-info{display:flex; align-items:center; gap:12px; margin-bottom:14px}
   .video-fuente-thumb{position:relative; width:104px; height:58px; border:1px solid var(--border2); border-radius:6px; overflow:hidden; padding:0; cursor:pointer; background:#000; flex-shrink:0}
   .video-fuente-thumb:hover{border-color:var(--muted)}
@@ -326,20 +328,36 @@ async function borrarAdjunto(id) {
   const { error } = await sb.from("adjuntos").delete().eq("id", id);
   if (error) console.error("borrarAdjunto", error);
 }
-/* Video fuente del desglose: se guarda como Blob (pesado), NO va al backup. En modo degradado (file://) se omite. */
+/* Video fuente del desglose → Supabase Storage (bucket `media`, carpeta video/).
+   Los videos viejos que quedaron en el IndexedDB local se migran solos al abrir la toma. */
 async function guardarVideoFuente(id, blob) {
-  if (modoDegradado) return false;
-  try { await tx(ST_VIDEOS, "readwrite", (s) => s.put(blob, id)); return true; }
-  catch (e) { console.error("No se pudo guardar el video fuente", e); return false; }
+  const { error } = await sb.storage.from("media").upload("video/" + id, blob, { upsert: true, contentType: (blob && blob.type) || "video/mp4" });
+  if (error) { console.error("guardarVideoFuente", error); return false; }
+  return true;
 }
 async function cargarVideoFuente(id) {
-  if (modoDegradado) return null;
-  try { const r = await tx(ST_VIDEOS, "readonly", (s) => s.get(id)); return r || null; }
-  catch { return null; }
+  const pub = sb.storage.from("media").getPublicUrl("video/" + id).data.publicUrl;
+  try { const h = await fetch(pub, { method: "HEAD" }); if (h.ok) return pub; } catch {}
+  /* no está en Storage: buscar en el IndexedDB local (videos de antes) y migrarlo en segundo plano */
+  try {
+    const blob = await tx(ST_VIDEOS, "readonly", (s) => s.get(id));
+    if (blob) { guardarVideoFuente(id, blob); return URL.createObjectURL(blob); }
+  } catch {}
+  return null;
 }
 async function borrarVideoFuente(id) {
-  if (modoDegradado) return;
+  try { await sb.storage.from("media").remove(["video/" + id]); } catch (e) {}
   try { await tx(ST_VIDEOS, "readwrite", (s) => s.delete(id)); } catch {}
+}
+/* Entrega (archivo final de la toma) → Storage en media/entrega/<shotId>, tal cual, sin comprimir ni achicar. */
+async function guardarEntrega(shotId, file) {
+  const { error } = await sb.storage.from("media").upload("entrega/" + shotId, file, { upsert: true, contentType: (file && file.type) || "application/octet-stream" });
+  if (error) { console.error("guardarEntrega", error); return false; }
+  return true;
+}
+const urlEntrega = (shotId) => sb.storage.from("media").getPublicUrl("entrega/" + shotId).data.publicUrl;
+async function borrarEntrega(shotId) {
+  try { await sb.storage.from("media").remove(["entrega/" + shotId]); } catch (e) {}
 }
 
 /* Backup completo (incluye los stills, sirve para mover el tablero de máquina) */
@@ -714,6 +732,7 @@ const diasEntre = (a, b) => {
   if (!a || !b) return 0;
   return Math.max(0, Math.round((new Date(b) - new Date(a)) / 86400000));
 };
+const tamFmt = (b) => (b >= 1048576 ? (b / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round((b || 0) / 1024)) + " KB");
 const codigo = (s) => (s.pieza || "PIEZA").toUpperCase().slice(0, 20) + " (" + (s.toma || 0) + ")";
 
 const AVATAR_COLORES = ["#4C6EF5", "#0CA678", "#E8590C", "#AE3EC9", "#1098AD", "#D6336C", "#66A80F"];
@@ -1056,8 +1075,13 @@ function ModalToma({ inicial, piezas, responsables, onGuardar, onCerrar, stillAc
   const [videoFuenteURL, setVideoFuenteURL] = useState(null);
   const [verVideo, setVerVideo] = useState(false);
   const verVideoRef = useRef(false);
+  const [entregaNueva, setEntregaNueva] = useState(null);          // archivo final a subir al guardar (tal cual)
+  const [entregaPreviewURL, setEntregaPreviewURL] = useState(null);
+  const [entregaQuitar, setEntregaQuitar] = useState(false);
+  const [guardando, setGuardando] = useState(false);
   const fileRef = useRef();
   const adjFileRef = useRef();
+  const entregaFileRef = useRef();
   const adjOriginales = useRef(new Set((inicial.adjuntos || []).map((a) => a.id)));
   const set = (k, v) => setF((p) => Object.assign({}, p, { [k]: v }));
 
@@ -1068,16 +1092,34 @@ function ModalToma({ inicial, piezas, responsables, onGuardar, onCerrar, stillAc
     return () => window.removeEventListener("keydown", onKey);
   }, [onCerrar]);
 
-  /* Cargar el video fuente del desglose (si esta toma tiene uno) */
+  /* Cargar el video fuente del desglose: URL pública de Storage, o blob local viejo (migra solo). */
   useEffect(() => {
     if (!inicial.videoFuente) return;
     let url = null;
     (async () => {
-      const blob = await cargarVideoFuente(inicial.videoFuente.id);
-      if (blob) { url = URL.createObjectURL(blob); setVideoFuenteURL(url); }
+      url = await cargarVideoFuente(inicial.videoFuente.id);
+      if (url) setVideoFuenteURL(url);
     })();
-    return () => { if (url) URL.revokeObjectURL(url); };
+    return () => { if (url && url.indexOf("blob:") === 0) URL.revokeObjectURL(url); };
   }, []);
+
+  /* Preview local de la entrega staged (se revoca al cambiar/cerrar) */
+  useEffect(() => {
+    return () => { if (entregaPreviewURL) URL.revokeObjectURL(entregaPreviewURL); };
+  }, [entregaPreviewURL]);
+
+  const onEntregaFile = (file) => {
+    if (!file) return;
+    setError("");
+    setEntregaNueva(file);
+    setEntregaPreviewURL(URL.createObjectURL(file));
+    setEntregaQuitar(false);
+  };
+  const quitarEntrega = () => {
+    setEntregaNueva(null);
+    setEntregaPreviewURL(null);
+    setEntregaQuitar(true);
+  };
 
   /* Cargar los adjuntos ya guardados de esta toma */
   useEffect(() => {
@@ -1142,10 +1184,32 @@ function ModalToma({ inicial, piezas, responsables, onGuardar, onCerrar, stillAc
 
   const guardar = async () => {
     if (!f.pieza.trim()) { setError("Falta el nombre de la pieza."); return; }
-    for (const id of adjNuevos) if (adjDatos[id]) await guardarAdjunto(id, adjDatos[id]);
-    for (const id of adjBorrados) await borrarAdjunto(id);
-    onGuardar(f, thumbNueva);
+    setGuardando(true);
+    try {
+      for (const id of adjNuevos) if (adjDatos[id]) await guardarAdjunto(id, adjDatos[id]);
+      for (const id of adjBorrados) await borrarAdjunto(id);
+      let fFinal = f;
+      if (entregaQuitar && f.entrega && !entregaNueva) {
+        await borrarEntrega(f.id);
+        fFinal = Object.assign({}, fFinal, { entrega: null });
+      }
+      if (entregaNueva) {
+        const ok = await guardarEntrega(f.id, entregaNueva);
+        if (!ok) { setError("No se pudo subir la entrega. Revisá la conexión y probá de nuevo."); return; }
+        fFinal = Object.assign({}, fFinal, {
+          entrega: { nombre: entregaNueva.name || "entrega", mime: entregaNueva.type || "", size: entregaNueva.size || 0, subidaAt: hoy() },
+        });
+      }
+      onGuardar(fFinal, thumbNueva);
+    } finally { setGuardando(false); }
   };
+
+  const entregaMeta = entregaNueva
+    ? { nombre: entregaNueva.name || "entrega", mime: entregaNueva.type || "", size: entregaNueva.size || 0 }
+    : (f.entrega && !entregaQuitar ? f.entrega : null);
+  const entregaSrc = entregaNueva
+    ? entregaPreviewURL
+    : (entregaMeta ? urlEntrega(f.id) + (f.entrega && f.entrega.subidaAt ? "?v=" + encodeURIComponent(f.entrega.subidaAt) : "") : null);
 
   return (
     <React.Fragment>
@@ -1252,6 +1316,39 @@ function ModalToma({ inicial, piezas, responsables, onGuardar, onCerrar, stillAc
           )}
         </div>
 
+        <div className="label-block">Entrega <span className="mini muted">(archivo final — se sube tal cual, sin comprimir ni achicar)</span>
+          {entregaMeta ? (
+            <div className="adj-item entrega-item">
+              {(entregaMeta.mime || "").indexOf("video") === 0 ? (
+                <video src={entregaSrc} controls preload="metadata" />
+              ) : (entregaMeta.mime || "").indexOf("image") === 0 ? (
+                <img src={entregaSrc} alt={entregaMeta.nombre} onClick={() => onLightbox && onLightbox(entregaSrc)} />
+              ) : (
+                <div className="entrega-archivo mini">📄 {entregaMeta.nombre}</div>
+              )}
+              <div className="adj-item-pie">
+                <span className="mini adj-nombre" title={entregaMeta.nombre}>
+                  {entregaMeta.nombre} · {tamFmt(entregaMeta.size)}{entregaNueva ? " · se sube al guardar" : ""}
+                </span>
+                {!entregaNueva && (
+                  <a className="btn-mini" href={entregaSrc} target="_blank" rel="noreferrer" download={entregaMeta.nombre} title="Descargar">⭳</a>
+                )}
+                <button type="button" className="btn-mini rojo" title="Quitar entrega" onClick={quitarEntrega}>✕</button>
+              </div>
+            </div>
+          ) : (
+            <div className="adj-drop" onClick={() => entregaFileRef.current.click()}
+              onDragOver={(e) => e.preventDefault()}
+              onDrop={(e) => { e.preventDefault(); onEntregaFile(e.dataTransfer.files[0]); }}>
+              <span className="mini">Soltá acá el archivo final de la toma, o hacé click para elegirlo</span>
+              <span className="mini muted">Se sube tal cual: sin comprimir ni achicar</span>
+              <input ref={entregaFileRef} type="file" hidden
+                onClick={(e) => e.stopPropagation()}
+                onChange={(e) => { onEntregaFile(e.target.files[0]); e.target.value = ""; }} />
+            </div>
+          )}
+        </div>
+
         {f.historial && f.historial.length > 0 && (
           <div className="historial">
             <span className="mini muted">Historial:</span>
@@ -1279,7 +1376,9 @@ function ModalToma({ inicial, piezas, responsables, onGuardar, onCerrar, stillAc
 
         <div className="modal-pie">
           {error && <span className="error-msg mini">{error}</span>}
-          <button className="btn-primario" onClick={guardar}>Guardar toma</button>
+          <button className="btn-primario" onClick={guardar} disabled={guardando}>
+            {guardando ? "Subiendo…" : "Guardar toma"}
+          </button>
         </div>
       </div>
     </div>
@@ -1435,6 +1534,7 @@ function App() {
     if (shot && shot.adjuntos) for (const a of shot.adjuntos) await borrarAdjunto(a.id);
     if (shot && shot.videoFuente && !restantes.some((s) => s.videoFuente && s.videoFuente.id === shot.videoFuente.id))
       await borrarVideoFuente(shot.videoFuente.id);
+    if (shot && shot.entrega) await borrarEntrega(shot.id);
     await persistir(restantes);
   };
 
