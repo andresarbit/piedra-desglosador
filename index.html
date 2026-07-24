@@ -29,6 +29,13 @@
   .sb-titulo{display:flex; flex-direction:column; gap:2px}
   .sb-num{font-size:30px; font-weight:700; line-height:1.1}
   .sb-label{font-size:11px; letter-spacing:.09em; text-transform:uppercase; color:var(--muted); font-weight:600; margin-bottom:6px; display:block}
+  .sb-label-row{display:flex; align-items:center; justify-content:space-between; margin-bottom:6px}
+  .sb-label-row .sb-label{margin-bottom:0}
+  .sb-add{background:none; border:1px solid var(--border2); color:var(--muted); border-radius:6px; width:22px; height:22px; font-size:15px; line-height:1; display:flex; align-items:center; justify-content:center; padding:0}
+  .sb-add:hover{color:var(--ink); background:var(--hover)}
+  .resp-del{opacity:0; background:none; border:none; color:var(--muted); font-size:12px; padding:2px 5px; border-radius:4px; flex-shrink:0}
+  .resp-item:hover .resp-del, .resp-del:focus{opacity:1}
+  .resp-del:hover{color:#C0392B; background:var(--hover)}
   .sb-seccion{display:flex; flex-direction:column; gap:1px}
   .filtro-item{display:flex; align-items:center; gap:8px; background:none; border:none; padding:6px 8px; border-radius:6px; color:var(--ink); font-size:13.5px; text-align:left}
   .filtro-item:hover{background:var(--hover)}
@@ -71,6 +78,10 @@
   .flecha{display:inline-block; width:12px; margin-left:4px; font-size:9px}
   tr:last-child td{border-bottom:none}
   tr:hover td{background:var(--bg2)}
+  tbody tr.fila-cambios td{background:#FDECEA}
+  tbody tr.fila-cambios:hover td{background:#FBDBD5}
+  .btn-leido{background:#C0392B; color:#fff; border:none; border-radius:6px; padding:4px 8px; font-size:11.5px; font-weight:600; white-space:nowrap; margin-left:4px}
+  .btn-leido:hover{background:#A5352A}
   .codigo-toma{font-weight:600; font-size:13.5px}
   .linea-corta{margin-top:3px; max-width:240px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis}
   .centrado{text-align:center}
@@ -104,7 +115,7 @@
   tbody tr:nth-last-child(-n+2) .nota-pop{top:auto; bottom:calc(100% + 8px)}
   tbody tr:nth-last-child(-n+2) .nota-pop::before{top:auto; bottom:-5px}
 
-  .kanban{display:grid; grid-template-columns:repeat(3,1fr); gap:14px}
+  .kanban{display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:14px}
   @media(max-width:820px){.kanban{grid-template-columns:1fr}}
   .col{background:var(--bg2); border:1px solid var(--border); border-radius:10px; padding:12px; min-height:220px}
   .col-head{font-size:12px; font-weight:600; margin-bottom:12px; display:flex; align-items:center; gap:8px}
@@ -139,6 +150,34 @@
   .adj-cargando{padding:24px 8px; text-align:center}
   .entrega-item{max-width:340px}
   .entrega-archivo{padding:18px 12px; text-align:center; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; color:var(--ink)}
+  .modal-con-chat{width:min(1000px,100%); display:flex; flex-direction:column; overflow:hidden}
+  .modal-cuerpo{display:flex; gap:18px; flex:1; min-height:0; overflow:hidden}
+  .modal-main{flex:1; min-width:0; overflow-y:auto; overflow-x:hidden; padding-right:6px}
+  .modal-chat{width:300px; flex-shrink:0; display:flex; flex-direction:column; min-height:0; border-left:1px solid var(--border); padding-left:16px}
+  .chat-titulo{font-weight:600; font-size:13px; margin-bottom:8px}
+  .chat-yo{display:flex; align-items:center; gap:6px; font-size:12px; color:var(--muted); margin-bottom:8px}
+  .chat-yo select{padding:4px 8px; font-size:12.5px}
+  .chat-lista{flex:1; min-height:120px; display:flex; flex-direction:column; gap:8px; overflow-y:auto; padding:6px; background:var(--bg2); border:1px solid var(--border); border-radius:8px; margin-bottom:8px}
+  .chat-vacio{color:var(--muted); text-align:center; padding:16px}
+  .chat-msg{background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:7px 10px}
+  .chat-msg.sin-leer{border-color:#E74C3C; background:#FDECEA; cursor:pointer}
+  .chat-msg.sin-leer:hover{background:#FBDBD5}
+  .chat-msg-cab{display:flex; align-items:center; gap:6px; margin-bottom:2px}
+  .chat-autor{font-weight:600; font-size:12.5px}
+  .chat-fecha{font-size:11px; color:var(--muted); margin-left:auto}
+  .chat-tag{font-size:10px; font-weight:700; color:#fff; background:#E74C3C; border-radius:4px; padding:1px 5px}
+  .chat-texto{font-size:13px; white-space:pre-wrap; word-break:break-word}
+  .chat-input{display:flex; gap:6px; align-items:flex-end}
+  .chat-input textarea{flex:1; resize:vertical; min-height:38px}
+  @media(max-width:720px){
+    .modal-con-chat{overflow-y:auto}
+    .modal-cuerpo{flex-direction:column; overflow:visible}
+    .modal-main{overflow:visible; padding-right:0}
+    .modal-chat{width:auto; border-left:none; border-top:1px solid var(--border); padding-left:0; padding-top:14px; margin-top:8px}
+    .chat-lista{max-height:260px}
+  }
+  .imp-player{width:100%; margin-top:4px}
+  .imp-player video{width:100%; max-height:38vh; border-radius:8px; background:#000; display:block}
   .modal-pie-info{display:flex; align-items:center; gap:12px; margin-bottom:14px}
   .video-fuente-thumb{position:relative; width:104px; height:58px; border:1px solid var(--border2); border-radius:6px; overflow:hidden; padding:0; cursor:pointer; background:#000; flex-shrink:0}
   .video-fuente-thumb:hover{border-color:var(--muted)}
@@ -388,14 +427,16 @@ async function importarTodo(data, modo) {
 }
 
 /* ==================== CONSTANTES ==================== */
-const ESTADOS = ["Producción", "Revisión", "Aprobada"];
+const ESTADOS = ["Producción", "Revisión Interna", "Revisión", "Cambios", "Aprobada"];
 /* Roster base del equipo: siempre disponible para asignar, aunque no tenga tomas.
    (En backend esto pasa a la tabla `users`, ver HANDOFF.md §4.) */
 const RESPONSABLES_BASE = ["Tomi", "Andi", "Guido"];
 const ESTADO_STYLE = {
-  "Producción": { color: "#92600A", bg: "#FBF3DC", dot: "#E3A008" },
-  "Revisión":   { color: "#3454C7", bg: "#EEF2FE", dot: "#5B79E3" },
-  "Aprobada":   { color: "#1E7F4F", bg: "#E7F6EC", dot: "#2FB36B" },
+  "Producción":       { color: "#92600A", bg: "#FBF3DC", dot: "#E3A008" },
+  "Revisión Interna": { color: "#0F766E", bg: "#DCF2EE", dot: "#14B8A6" },
+  "Revisión":         { color: "#3454C7", bg: "#EEF2FE", dot: "#5B79E3" },
+  "Cambios":          { color: "#C0392B", bg: "#FDECEA", dot: "#E74C3C" },
+  "Aprobada":         { color: "#1E7F4F", bg: "#E7F6EC", dot: "#2FB36B" },
 };
 
 /* ==================== ANÁLISIS DE VIDEO ====================
@@ -733,6 +774,7 @@ const diasEntre = (a, b) => {
   return Math.max(0, Math.round((new Date(b) - new Date(a)) / 86400000));
 };
 const tamFmt = (b) => (b >= 1048576 ? (b / 1048576).toFixed(1) + " MB" : Math.max(1, Math.round((b || 0) / 1024)) + " KB");
+const tieneCambiosSinLeer = (s) => (s.comentarios || []).some((c) => c.leido === false);
 const codigo = (s) => (s.pieza || "PIEZA").toUpperCase().slice(0, 20) + " (" + (s.toma || 0) + ")";
 
 const AVATAR_COLORES = ["#4C6EF5", "#0CA678", "#E8590C", "#AE3EC9", "#1098AD", "#D6336C", "#66A80F"];
@@ -834,6 +876,7 @@ function ImportarPieza({ file, piezas, onCrear, onCerrar }) {
   const [pieza, setPieza] = useState("");
   const [fechaEntrega, setFechaEntrega] = useState("");
   const [creando, setCreando] = useState(false);
+  const [playerURL, setPlayerURL] = useState(null);
   const videoRef = useRef(null);
   const urlRef = useRef(null);
   const motorRef = useRef(null);
@@ -844,6 +887,13 @@ function ImportarPieza({ file, piezas, onCrear, onCerrar }) {
     if (iniciadoRef.current) return;
     iniciadoRef.current = true;
     analizar();
+  }, []);
+
+  /* URL para el player de chequeo (abajo de las tomas detectadas) */
+  useEffect(() => {
+    const u = URL.createObjectURL(file);
+    setPlayerURL(u);
+    return () => URL.revokeObjectURL(u);
   }, []);
 
   const limpiar = () => {
@@ -1049,6 +1099,13 @@ function ImportarPieza({ file, piezas, onCrear, onCerrar }) {
               ))}
             </div>
 
+            {playerURL && (
+              <div className="imp-player">
+                <p className="mini muted imp-ayuda">Video completo para chequear los cortes:</p>
+                <video src={playerURL} controls preload="metadata" />
+              </div>
+            )}
+
             <div className="modal-pie">
               {msj && !creando && msj.indexOf("pieza") !== -1 && <span className="error-msg mini">{msj}</span>}
               <span className="mini muted">{incluidas.length} tomas a crear</span>
@@ -1064,7 +1121,7 @@ function ImportarPieza({ file, piezas, onCrear, onCerrar }) {
 }
 
 /* ---------- Modal de toma ---------- */
-function ModalToma({ inicial, piezas, responsables, onGuardar, onCerrar, stillActual, onLightbox }) {
+function ModalToma({ inicial, piezas, responsables, onGuardar, onCerrar, stillActual, onLightbox, onComentar, onLeerComentario }) {
   const [f, setF] = useState(inicial);
   const [thumb, setThumb] = useState(stillActual || null);
   const [thumbNueva, setThumbNueva] = useState(null);
@@ -1079,9 +1136,13 @@ function ModalToma({ inicial, piezas, responsables, onGuardar, onCerrar, stillAc
   const [entregaPreviewURL, setEntregaPreviewURL] = useState(null);
   const [entregaQuitar, setEntregaQuitar] = useState(false);
   const [guardando, setGuardando] = useState(false);
+  const [comentarios, setComentarios] = useState(inicial.comentarios || []);
+  const [chatTexto, setChatTexto] = useState("");
+  const [yo, setYo] = useState(() => localStorage.getItem("piedra:yo") || "");
   const fileRef = useRef();
   const adjFileRef = useRef();
   const entregaFileRef = useRef();
+  const chatListRef = useRef(null);
   const adjOriginales = useRef(new Set((inicial.adjuntos || []).map((a) => a.id)));
   const set = (k, v) => setF((p) => Object.assign({}, p, { [k]: v }));
 
@@ -1204,6 +1265,28 @@ function ModalToma({ inicial, piezas, responsables, onGuardar, onCerrar, stillAc
     } finally { setGuardando(false); }
   };
 
+  const enviarComentario = () => {
+    const texto = chatTexto.trim();
+    if (!texto) return;
+    if (!yo) { setError("Elegí quién escribe (arriba del chat) antes de comentar."); return; }
+    setError("");
+    const c = { id: uid(), autor: yo, texto, fecha: hoy(), leido: false };
+    setComentarios((prev) => prev.concat([c]));
+    onComentar(f.id, c);
+    setChatTexto("");
+  };
+
+  const leerComentario = (comId) => {
+    setComentarios((prev) => prev.map((c) => (c.id === comId && c.leido === false ? Object.assign({}, c, { leido: true }) : c)));
+    if (onLeerComentario) onLeerComentario(f.id, comId);
+  };
+
+  /* Scroll al último mensaje cuando llega uno nuevo */
+  useEffect(() => {
+    const el = chatListRef.current;
+    if (el) el.scrollTop = el.scrollHeight;
+  }, [comentarios.length]);
+
   const entregaMeta = entregaNueva
     ? { nombre: entregaNueva.name || "entrega", mime: entregaNueva.type || "", size: entregaNueva.size || 0 }
     : (f.entrega && !entregaQuitar ? f.entrega : null);
@@ -1214,12 +1297,14 @@ function ModalToma({ inicial, piezas, responsables, onGuardar, onCerrar, stillAc
   return (
     <React.Fragment>
     <div className="modal-fondo" onMouseDown={(e) => e.target === e.currentTarget && onCerrar()}>
-      <div className="modal" role="dialog" aria-modal="true">
+      <div className="modal modal-con-chat" role="dialog" aria-modal="true">
         <div className="modal-head">
           <span className="modal-codigo">{codigo(f)} <Badge>v{f.version || 1}</Badge></span>
           <button className="btn-fantasma" onClick={onCerrar}>Cerrar ✕</button>
         </div>
 
+        <div className="modal-cuerpo">
+        <div className="modal-main">
         <div className="modal-grid">
           <div className="drop-still" onClick={() => fileRef.current.click()}
             onDragOver={(e) => e.preventDefault()}
@@ -1281,6 +1366,16 @@ function ModalToma({ inicial, piezas, responsables, onGuardar, onCerrar, stillAc
         <label className="label-block">Notas / QC
           <textarea rows="2" value={f.notas} placeholder="Feedback, errores detectados, ajustes pendientes…"
             onChange={(e) => set("notas", e.target.value)} />
+        </label>
+
+        <label className="label-block">Link de Drive <span className="mini muted">(material extra)</span>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            <input type="url" style={{ flex: 1 }} placeholder="https://drive.google.com/…"
+              value={f.linkDrive || ""} onChange={(e) => set("linkDrive", e.target.value)} />
+            {f.linkDrive && /^https?:\/\//.test(f.linkDrive) && (
+              <a className="btn-fantasma" href={f.linkDrive} target="_blank" rel="noreferrer" style={{ textDecoration: "none" }}>Abrir ↗</a>
+            )}
+          </div>
         </label>
 
         <div className="label-block">Referencias / adjuntos
@@ -1373,6 +1468,42 @@ function ModalToma({ inicial, piezas, responsables, onGuardar, onCerrar, stillAc
             {f.iteraciones != null ? " · " + f.iteraciones + " iter." : ""}
           </span>
         </div>
+        </div>
+
+        <div className="modal-chat">
+          <div className="chat-titulo">Chat de cambios</div>
+          <div className="chat-yo">
+            Escribís como:
+            <select value={yo} onChange={(e) => { setYo(e.target.value); localStorage.setItem("piedra:yo", e.target.value); }}>
+              <option value="">— elegí —</option>
+              {responsables.map((r) => <option key={r} value={r}>{r}</option>)}
+            </select>
+          </div>
+          <div className="chat-lista" ref={chatListRef}>
+            {comentarios.length === 0 ? (
+              <div className="chat-vacio mini">Sin cambios todavía.</div>
+            ) : comentarios.map((c) => (
+              <div key={c.id} className={"chat-msg" + (c.leido === false ? " sin-leer" : "")}
+                onClick={() => c.leido === false && leerComentario(c.id)}
+                title={c.leido === false ? "Click para marcar como leído" : ""}>
+                <div className="chat-msg-cab">
+                  <Avatar nombre={c.autor} />
+                  <span className="chat-autor">{c.autor}</span>
+                  {c.leido === false && <span className="chat-tag">NUEVO</span>}
+                  <span className="chat-fecha">{new Date(c.fecha).toLocaleString("es-AR", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+                </div>
+                <div className="chat-texto">{c.texto}</div>
+              </div>
+            ))}
+          </div>
+          <div className="chat-input">
+            <textarea rows="2" value={chatTexto} placeholder="Escribí un cambio… (Ctrl+Enter)"
+              onChange={(e) => setChatTexto(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); enviarComentario(); } }} />
+            <button type="button" className="btn-primario" onClick={enviarComentario}>Enviar</button>
+          </div>
+        </div>
+        </div>
 
         <div className="modal-pie">
           {error && <span className="error-msg mini">{error}</span>}
@@ -1410,6 +1541,26 @@ function App() {
   const [degradado, setDegradado] = useState(false);
   const [nuevoResp, setNuevoResp] = useState(null);
   const [orden, setOrden] = useState({ key: "pieza", dir: 1 });
+  const [respExtra, setRespExtra] = useState(() => { try { return JSON.parse(localStorage.getItem("piedra:respExtra") || "[]"); } catch { return []; } });
+  const [respOcultos, setRespOcultos] = useState(() => { try { return JSON.parse(localStorage.getItem("piedra:respOcultos") || "[]"); } catch { return []; } });
+  const [agregandoResp, setAgregandoResp] = useState(false);
+  const [respTexto, setRespTexto] = useState("");
+  const sumarResponsable = (nombre) => {
+    const n = (nombre || "").trim();
+    if (!n) { setAgregandoResp(false); return; }
+    const lista = Array.from(new Set(respExtra.concat([n])));
+    setRespExtra(lista); localStorage.setItem("piedra:respExtra", JSON.stringify(lista));
+    const oc = respOcultos.filter((x) => x !== n);
+    setRespOcultos(oc); localStorage.setItem("piedra:respOcultos", JSON.stringify(oc));
+    setRespTexto(""); setAgregandoResp(false);
+  };
+  const borrarResponsable = (nombre) => {
+    const ex = respExtra.filter((x) => x !== nombre);
+    setRespExtra(ex); localStorage.setItem("piedra:respExtra", JSON.stringify(ex));
+    const oc = Array.from(new Set(respOcultos.concat([nombre])));
+    setRespOcultos(oc); localStorage.setItem("piedra:respOcultos", JSON.stringify(oc));
+    if (fResp === nombre) setFResp(null);
+  };
   const fileVideoRef = useRef();
   const fileBackupRef = useRef();
   /* Espejo de `shots` para leer siempre el último valor dentro de los handlers
@@ -1443,7 +1594,7 @@ function App() {
   };
 
   const piezas = useMemo(() => Array.from(new Set(shots.map((s) => s.pieza).filter(Boolean))).sort(), [shots]);
-  const responsables = useMemo(() => Array.from(new Set([...RESPONSABLES_BASE, ...shots.map((s) => s.responsable).filter(Boolean)])).sort(), [shots]);
+  const responsables = useMemo(() => Array.from(new Set([...RESPONSABLES_BASE, ...respExtra, ...shots.map((s) => s.responsable).filter(Boolean)])).filter((r) => respOcultos.indexOf(r) === -1).sort(), [shots, respExtra, respOcultos]);
   const sinAsignar = useMemo(() => shots.filter((s) => !s.responsable).length, [shots]);
 
   const cuentaEstado = (e) => shots.filter((s) => s.estado === e).length;
@@ -1488,9 +1639,11 @@ function App() {
   };
 
   const guardarToma = async (f, thumbNueva) => {
+    const canon = shotsRef.current.find((s) => s.id === f.id);
     const shot = Object.assign({}, f, {
       updatedAt: hoy(), hasStill: f.hasStill || !!thumbNueva,
       completadaAt: f.estado === "Aprobada" ? (f.completadaAt || hoy()) : f.completadaAt,
+      comentarios: canon ? (canon.comentarios || []) : (f.comentarios || []),
     });
     if (thumbNueva) {
       await guardarStill(shot.id, thumbNueva);
@@ -1505,6 +1658,16 @@ function App() {
     persistir(shotsRef.current.map((s) => (s.id === id ? Object.assign({}, s, {
       estado, updatedAt: hoy(),
       completadaAt: estado === "Aprobada" ? (s.completadaAt || hoy()) : s.completadaAt,
+    }) : s)));
+  const agregarComentario = (id, comentario) =>
+    persistir(shotsRef.current.map((s) => (s.id === id ? Object.assign({}, s, {
+      comentarios: (s.comentarios || []).concat([comentario]),
+      updatedAt: hoy(),
+    }) : s)));
+  const marcarComentarioLeido = (id, comId) =>
+    persistir(shotsRef.current.map((s) => (s.id === id ? Object.assign({}, s, {
+      comentarios: (s.comentarios || []).map((c) => (c.id === comId ? Object.assign({}, c, { leido: true }) : c)),
+      updatedAt: hoy(),
     }) : s)));
   const cambiarResp = (id, responsable) =>
     persistir(shotsRef.current.map((s) => (s.id === id ? Object.assign({}, s, { responsable, updatedAt: hoy() }) : s)));
@@ -1620,12 +1783,26 @@ function App() {
 
           {(responsables.length > 0 || sinAsignar > 0) && (
             <div className="sb-seccion">
-              <span className="sb-label">Responsable</span>
+              <div className="sb-label-row">
+                <span className="sb-label">Responsable</span>
+                <button className="sb-add" title="Agregar responsable" onClick={() => { setAgregandoResp(true); setRespTexto(""); }}>＋</button>
+              </div>
+              {agregandoResp && (
+                <input autoFocus className="resp-input" placeholder="Nombre del responsable…" value={respTexto}
+                  style={{ width: "100%", marginBottom: 4 }}
+                  onChange={(e) => setRespTexto(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === "Enter") sumarResponsable(respTexto); if (e.key === "Escape") { setAgregandoResp(false); setRespTexto(""); } }}
+                  onBlur={() => sumarResponsable(respTexto)} />
+              )}
               {responsables.map((r) => (
-                <FiltroItem key={r} activo={fResp === r}
-                  onClick={() => setFResp(fResp === r ? null : r)} count={cuentaResp(r)}>
-                  <Avatar nombre={r} /> {r}
-                </FiltroItem>
+                <div key={r} className={"filtro-item resp-item" + (fResp === r ? " on" : "")}>
+                  <span className="filtro-nombre" style={{ cursor: "pointer" }}
+                    onClick={() => setFResp(fResp === r ? null : r)}>
+                    <Avatar nombre={r} /> {r}
+                  </span>
+                  <span className="filtro-count mono">{cuentaResp(r)}</span>
+                  <button className="resp-del" title={"Quitar a " + r + " del listado"} onClick={() => borrarResponsable(r)}>✕</button>
+                </div>
               ))}
               {sinAsignar > 0 && (
                 <FiltroItem activo={fResp === ""} onClick={() => setFResp(fResp === "" ? null : "")} count={sinAsignar}>
@@ -1703,7 +1880,7 @@ function App() {
                 </thead>
                 <tbody>
                   {filtradas.map((s) => (
-                    <tr key={s.id} onClick={() => setModal({ shot: s })}>
+                    <tr key={s.id} className={tieneCambiosSinLeer(s) ? "fila-cambios" : ""} onClick={() => setModal({ shot: s })}>
                       <td className="centrado" onClick={(e) => e.stopPropagation()}><PrioBars nivel={nivelPrio(s)} onCiclar={() => ciclarPrio(s.id)} /></td>
                       <td onClick={(e) => e.stopPropagation()}><Thumb src={stills[s.id]} onClick={() => stills[s.id] && setLightbox(stills[s.id])} /></td>
                       <td>
@@ -1798,7 +1975,7 @@ function App() {
       {modal && (
         <ModalToma inicial={modal.shot} piezas={piezas} responsables={responsables}
           stillActual={stills[modal.shot.id]} onGuardar={guardarToma} onCerrar={() => setModal(null)}
-          onLightbox={setLightbox} />
+          onLightbox={setLightbox} onComentar={agregarComentario} onLeerComentario={marcarComentarioLeido} />
       )}
       {lightbox && (
         <div className="modal-fondo lightbox" onClick={() => setLightbox(null)}>
